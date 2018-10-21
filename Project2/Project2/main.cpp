@@ -48,6 +48,7 @@ int main(int argc, char* argv[])
 {
 	if (argc != 2) {
 		std::printf("Invalid number of args.\n");
+		getchar();
 		return -1;
 	}
 	int arg_type;
@@ -57,6 +58,7 @@ int main(int argc, char* argv[])
 		arg_type = 1;
 		if (inet_addr(argv[1]) == INADDR_NONE) {
 			std::printf("Invalid IP");
+			getchar();
 			return -1;
 		}
 		host = host + ".in-addr.arpa";
@@ -74,6 +76,7 @@ int main(int argc, char* argv[])
 	if (WSAStartup(wVersionRequested, &wsaData) != 0) {
 		printf("WSAStartup error %d\n", WSAGetLastError());
 		WSACleanup();
+		getchar();
 		return -1;
 	}
 
@@ -119,32 +122,36 @@ int main(int argc, char* argv[])
 	WaitForSingleObject(p.finished, INFINITE);
 
 
-	// -------------------------------  testing the DNS query  -----------
+	// -------------------------------  testing the DNS query  --------------------------------------------
 
-//	string host = "www.yahoo.com" ; 
-//	string host = "7.74.238.131.in-addr.arpa"; 
-	int pkt_size = sizeof(FixedDNSheader) + sizeof(QueryHeader) + host.size() + 2; //+1 byte for "size" for last substring, +1 for "0" meaning the end of question
+	//+1 byte for "size" for last substring, +1 for "0" meaning the end of question
+	int pkt_size = sizeof(FixedDNSheader) + sizeof(QueryHeader) + host.size() + 2;
 
 	//char* pkt = new char[pkt_size];
-
-	//FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
-	//QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
 
 	FixedDNSheader * dHDR = new FixedDNSheader;
 	QueryHeader * qHDR = new QueryHeader;
 
+	Question q;
+
+	q.CreateQuestion(host);
+
+	printf("SIZE: %d\n", q.Size());
+	getchar();
+
+	//FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
+	//QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
+
 	dHDR->ID = htons(102);
 	dHDR->questions = htons(1);
-	dHDR->addRRs = 0;
+	dHDR->addRRs  = 0;
 	dHDR->answers = 0;
 	dHDR->authRRs = 0;
-	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);
-	//	dHDR->flags = htons( 0x0100 );  
+	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);  
 
-	qHDR->qclass = htons(DNS_INET);
-	//	qHDR->qclass = htons( 0x0001); 
+	qHDR->qclass = htons(DNS_INET); 
 
-		// if hostname
+	// if hostname
 	if (arg_type == 2) {
 		qHDR->type = htons(DNS_A);
 	}
@@ -152,10 +159,6 @@ int main(int argc, char* argv[])
 	else if (arg_type == 1) {
 		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
 	}
-
-	Question q;
-
-	q.CreateQuestion(host);
 
 	int size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
 	char *pkt = new char[size];

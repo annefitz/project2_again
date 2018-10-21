@@ -14,7 +14,7 @@ bool Question::MakePacket(char* pkt, FixedDNSheader &dnsheader, QueryHeader &que
 	int size_pkt = strlen(pkt);
 	int dhdr_size = sizeof(dnsheader);
 	int qhdr_size = sizeof(queryheader);
-	int buf_size = sizeof(rawbuffer);
+	int buf_size = strlen(rawbuffer);
 
 	// add the dns header to pkt
 	memcpy(pkt, &dnsheader, dhdr_size);
@@ -23,7 +23,7 @@ bool Question::MakePacket(char* pkt, FixedDNSheader &dnsheader, QueryHeader &que
 	memcpy(pkt + dhdr_size, rawbuffer, buf_size);
 
 	// add the query header to pkt
-	//memcpy(pkt + size_pkt - qhdr_size, &queryheader, qhdr_size);
+	memcpy(pkt + dhdr_size + buf_size, &queryheader, qhdr_size);
 
 	return true;
 }
