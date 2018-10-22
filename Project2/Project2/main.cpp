@@ -125,12 +125,12 @@ int main(int argc, char* argv[])
 	// -------------------------------  testing the DNS query  --------------------------------------------
 
 	//+1 byte for "size" for last substring, +1 for "0" meaning the end of question
-	int pkt_size = sizeof(FixedDNSheader) + sizeof(QueryHeader) + host.size() + 2;
+	//int pkt_size = sizeof(FixedDNSheader) + sizeof(QueryHeader) + host.size() + 2;
 
 	//char* pkt = new char[pkt_size];
 
-	FixedDNSheader * dHDR = new FixedDNSheader;
-	QueryHeader * qHDR = new QueryHeader;
+	//FixedDNSheader * dHDR;
+	//QueryHeader * qHDR;
 
 	Question q;
 
@@ -139,8 +139,11 @@ int main(int argc, char* argv[])
 	printf("SIZE: %d\n", q.Size());
 	getchar();
 
-	//FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
-	//QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
+	int pkt_size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
+	char *pkt = new char[pkt_size];
+
+	FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
+	QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
 
 	dHDR->ID = htons(102);
 	dHDR->questions = htons(1);
@@ -160,10 +163,7 @@ int main(int argc, char* argv[])
 		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
 	}
 
-	int size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
-	char *pkt = new char[size];
-
-	q.MakePacket(pkt, *dHDR, *qHDR);
+	q.MakePacket(pkt, dHDR, qHDR);
 
 	Winsock ws;
 
@@ -180,21 +180,28 @@ int main(int argc, char* argv[])
 	int sentbytes = sendto(sock, pkt, pkt_size, 0, (struct sockaddr*) &send_addr, send_addrSize);
 	cout << "sentbytes=" << sentbytes << endl;
 
-	for (int i = 0; i < pkt_size; i++)
-	{
-		cout << "i= " << i << " " << pkt[i] << endl;
-	}
+//	for (int i = 0; i < pkt_size; i++)
+//	{
+//		cout << "i= " << i << " " << pkt[i] << endl;
+//	}
 	cout << endl;
 
 	char recv_buf[512];
 
 	int recvbytes = 0;
 	if (sentbytes > 0)
-		recvbytes = recvfrom(sock, recv_buf, 512, 0, (sockaddr *)&send_addr, &send_addrSize);
+		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
 
 	cout << "recv_bytes=" << recvbytes << endl;
 
 	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
+	FixedRR * rFRR = (FixedRR *)(recv_buf + recvbytes - sizeof(FixedRR) - 1);
+
+//	for (int i = 0; i < 100; i++)
+//	{
+//		cout << "recv= " << i << " " << recv_buf[i] << endl;
+//	}
+
 	cout << "ID=" << ntohs(dHDR->ID) << "??" << ntohs(rDNS->ID) << endl;
 	cout << "questions=" << ntohs(rDNS->questions) << endl;
 	cout << "Answers=" << ntohs(rDNS->answers) << endl;
@@ -207,12 +214,18 @@ int main(int argc, char* argv[])
 	rcode = rcode & ntohs(rDNS->flags);
 	cout << "Rcode= " << rcode << endl; ;
 
+	cout << "Fixed RR: " << endl;
+	cout << "type: " << ntohs(rFRR->type) << endl;
+	cout << "RRclass: " << ntohs(rFRR->RRclass) << endl;
+	cout << "ttl: " << ntohs(rFRR->ttl) << endl;
+	cout << "len: " << ntohs(rFRR->len) << endl;
+
 	// for debugging:
-//	for ( int i = 0; i< recvbytes; i++)
-//	{
-//		printf("%x\t", i, recv_buf[i] ); 
-//	}
-//	cout<<endl; 
+	for ( int i = 0; i< recvbytes; i++)
+	{
+		printf("%x\t", i, recv_buf[i] ); 
+	}
+	cout<<endl; 
 
 	closesocket(sock);
 

@@ -88,7 +88,7 @@ public:
 
 	Question(void);			// constructor
 
-	bool MakePacket(char* pkt, FixedDNSheader &dnsheader, QueryHeader &queryheader);
+	bool MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader);
 
 	bool CreateQuestion(string host);
 

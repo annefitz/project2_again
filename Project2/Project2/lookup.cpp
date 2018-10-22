@@ -8,25 +8,25 @@ Question::Question(void)  // constructor
 };
 
 // Packet visual:
-// [ DNS Header - Question Buffer - Query Header ]
-bool Question::MakePacket(char* pkt, FixedDNSheader &dnsheader, QueryHeader &queryheader)
+// [ DNS Header + Question Buffer + Query Header ]
+bool Question::MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader)
 {
-	int size_pkt = strlen(pkt);
 	int dhdr_size = sizeof(dnsheader);
 	int qhdr_size = sizeof(queryheader);
 	int buf_size = strlen(rawbuffer);
 
 	// add the dns header to pkt
-	memcpy(pkt, &dnsheader, dhdr_size);
+	//memcpy(pkt, &dnsheader, dhdr_size);
 
 	// copy the mem from rawbuffer to pkt
 	memcpy(pkt + dhdr_size, rawbuffer, buf_size);
 
 	// add the query header to pkt
-	memcpy(pkt + dhdr_size + buf_size, &queryheader, qhdr_size);
+	//memcpy(pkt + dhdr_size + buf_size, &queryheader, qhdr_size);
 
 	return true;
 }
+
 
 bool Question::CreateQuestion(string host)
 {
@@ -54,15 +54,10 @@ bool Question::CreateQuestion(string host)
 	}
 	rawbuffer[hdr_size + i] = 0;
 
-	for (int i = 0; i < host.size() + 2; i++)
-	{
-		std::cout << "i= " << i << " " << rawbuffer[i] << endl;
-	}
-	getchar();
 
 	return true;
 }
 
 int Question::Size() {
-	return sizeof(rawbuffer);
+	return strlen(rawbuffer);
 }
