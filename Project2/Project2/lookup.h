@@ -92,6 +92,6 @@ public:
 
 	bool CreateQuestion(string host, char* pkt);
 
-	size_t Size();
+	int Size();
 
 };

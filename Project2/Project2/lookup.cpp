@@ -62,6 +62,6 @@ bool Question::CreateQuestion(string host, char* pkt)
 	return true;
 }
 
-size_t Question::Size() {
+int Question::Size() {
 	return strlen(rawbuffer);
 }
