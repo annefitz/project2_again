@@ -134,35 +134,11 @@ int main(int argc, char* argv[])
 
 	Question q;
 
-	size_t pkt_size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
+	size_t pkt_size = sizeof(FixedDNSheader) + host.size() + 2 + sizeof(QueryHeader);
 	char *pkt = new char[pkt_size];
 
-	FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
-	QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
-
-	//FixedDNSheader *dHDR = new FixedDNSheader;
-	//QueryHeader *qHDR = new QueryHeader;
-
-	dHDR->ID = htons(102);
-	dHDR->questions = htons(1);
-	dHDR->addRRs  = 0;
-	dHDR->answers = 0;
-	dHDR->authRRs = 0;
-	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);
-
-	qHDR->qclass = htons(DNS_INET); 
-
-	// if hostname
-	if (arg_type == 2) {
-		qHDR->type = htons(DNS_A);
-	}
-	// if IP
-	else if (arg_type == 1) {
-		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
-	}
-
 	//q.MakePacket(pkt, dHDR, qHDR);
-	q.CreateQuestion(host, pkt);
+	q.CreatePacket(host, arg_type, pkt, pkt_size);
 
 	Winsock ws;
 
@@ -201,7 +177,7 @@ int main(int argc, char* argv[])
 //		cout << "recv= " << i << " " << recv_buf[i] << endl;
 //	}
 
-	cout << "ID=" << ntohs(dHDR->ID) << "??" << ntohs(rDNS->ID) << endl;
+	cout << "ID=" << 102 << "??" << ntohs(rDNS->ID) << endl;
 	cout << "questions=" << ntohs(rDNS->questions) << endl;
 	cout << "Answers=" << ntohs(rDNS->answers) << endl;
 	cout << "authRRs=" << ntohs(rDNS->authRRs) << endl;

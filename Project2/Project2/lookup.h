@@ -84,14 +84,11 @@ public:
 
 class Question{
 public: 
-	char *rawbuffer;
 
 	Question(void);			// constructor
 
 	//bool MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader);
 
-	bool CreateQuestion(string host, char* pkt);
-
-	int Size();
+	bool CreatePacket(string host, short type, char * pkt, int pkt_size);
 
 };

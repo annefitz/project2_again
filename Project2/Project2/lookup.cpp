@@ -29,12 +29,19 @@ bool Question::MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *que
 }
 */
 
-bool Question::CreateQuestion(string host, char* pkt)
+bool Question::CreatePacket(string host, short arg_type, char * pkt, int pkt_size)
 {
-	size_t dhdr_size = sizeof(FixedDNSheader);
+	FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
+	QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
 
-	// only creating the question, so only use size of question
-	rawbuffer = new char[host.size() + 2];
+	dHDR->ID = htons(102);
+	dHDR->questions = htons(1);
+	dHDR->addRRs = 0;
+	dHDR->answers = 0;
+	dHDR->authRRs = 0;
+	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);
+
+	qHDR->qclass = htons(DNS_INET);
 
 	int position = host.find(".");
 	string sub_str;
@@ -48,20 +55,23 @@ bool Question::CreateQuestion(string host, char* pkt)
 		sub_size = position - i;
 		sub_str = host.substr(i, position);
 
-		rawbuffer[i] = sub_size;  // specify the size of the chunk (subdomain)
+		pkt[hdr_size + i] = sub_size;  // specify the size of the chunk (subdomain)
 		i++;
-		memcpy(rawbuffer + i, sub_str.c_str(), sub_size); // specify the actual subdomain
+		memcpy(pkt + hdr_size + i, sub_str.c_str(), sub_size); // specify the actual subdomain
 
 		i += sub_size;
 		position = host.find(".", i);
 	}
-	rawbuffer[hdr_size + i] = 0;
+	pkt[hdr_size + i] = 0;
 
-	memcpy(pkt + dhdr_size, rawbuffer, strlen(rawbuffer));
+	// if hostname
+	if (arg_type == 2) {
+		qHDR->type = htons(DNS_A);
+	}
+	// if IP
+	else if (arg_type == 1) {
+		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
+	}
 
 	return true;
-}
-
-int Question::Size() {
-	return strlen(rawbuffer);
 }
