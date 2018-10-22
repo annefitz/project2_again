@@ -134,23 +134,21 @@ int main(int argc, char* argv[])
 
 	Question q;
 
-	q.CreateQuestion(host);
-
-	printf("SIZE: %d\n", q.Size());
-	getchar();
-
-	int pkt_size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
+	size_t pkt_size = sizeof(FixedDNSheader) + q.Size() + sizeof(QueryHeader);
 	char *pkt = new char[pkt_size];
 
 	FixedDNSheader * dHDR = (FixedDNSheader *)pkt;
 	QueryHeader *qHDR = (QueryHeader*)(pkt + pkt_size - sizeof(QueryHeader));
+
+	//FixedDNSheader *dHDR = new FixedDNSheader;
+	//QueryHeader *qHDR = new QueryHeader;
 
 	dHDR->ID = htons(102);
 	dHDR->questions = htons(1);
 	dHDR->addRRs  = 0;
 	dHDR->answers = 0;
 	dHDR->authRRs = 0;
-	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);  
+	dHDR->flags = htons(DNS_QUERY | DNS_RD | DNS_STDQUERY);
 
 	qHDR->qclass = htons(DNS_INET); 
 
@@ -163,7 +161,8 @@ int main(int argc, char* argv[])
 		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
 	}
 
-	q.MakePacket(pkt, dHDR, qHDR);
+	//q.MakePacket(pkt, dHDR, qHDR);
+	q.CreateQuestion(host, pkt);
 
 	Winsock ws;
 

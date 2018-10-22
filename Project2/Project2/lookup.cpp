@@ -7,6 +7,7 @@ Question::Question(void)  // constructor
 
 };
 
+/*
 // Packet visual:
 // [ DNS Header + Question Buffer + Query Header ]
 bool Question::MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader)
@@ -26,10 +27,12 @@ bool Question::MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *que
 
 	return true;
 }
+*/
 
-
-bool Question::CreateQuestion(string host)
+bool Question::CreateQuestion(string host, char* pkt)
 {
+	size_t dhdr_size = sizeof(FixedDNSheader);
+
 	// only creating the question, so only use size of question
 	rawbuffer = new char[host.size() + 2];
 
@@ -54,10 +57,11 @@ bool Question::CreateQuestion(string host)
 	}
 	rawbuffer[hdr_size + i] = 0;
 
+	memcpy(pkt + dhdr_size, rawbuffer, strlen(rawbuffer));
 
 	return true;
 }
 
-int Question::Size() {
+size_t Question::Size() {
 	return strlen(rawbuffer);
 }

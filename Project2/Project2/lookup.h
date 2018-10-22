@@ -88,10 +88,10 @@ public:
 
 	Question(void);			// constructor
 
-	bool MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader);
+	//bool MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader);
 
-	bool CreateQuestion(string host);
+	bool CreateQuestion(string host, char* pkt);
 
-	int Size();
+	size_t Size();
 
 };
