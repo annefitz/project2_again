@@ -18,6 +18,7 @@
 #include <iostream>
 
 
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *rFRR, RRanswer *ansRR);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -159,6 +160,7 @@ int main(int argc, char* argv[])
 //	{
 //		cout << "i= " << i << " " << pkt[i] << endl;
 //	}
+
 	cout << endl;
 
 	char recv_buf[512];
@@ -169,13 +171,40 @@ int main(int argc, char* argv[])
 
 	cout << "recv_bytes=" << recvbytes << endl;
 
-	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
-	FixedRR * rFRR = (FixedRR *)(recv_buf + recvbytes - sizeof(FixedRR) - 1);
-
 //	for (int i = 0; i < 100; i++)
 //	{
 //		cout << "recv= " << i << " " << recv_buf[i] << endl;
 //	}
+
+	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
+	FixedRR * rFRR = (FixedRR *)(recv_buf + recvbytes - sizeof(FixedRR) - 1);
+	RRanswer * ansRR = (RRanswer *)(sizeof(FixedDNSheader) + host.size() + sizeof(QueryHeader));
+
+	PrintResponse(rDNS, rFRR, ansRR);
+
+	// for debugging:
+	for ( int i = 0; i < recvbytes; i++) //(sizeof(FixedDNSheader) + size(host) + sizeof(QueryHeader) + 16)
+	{
+		printf("%d : %c\n", i, recv_buf[i]);
+		//cout << "i: " << i << " recv: " << recv_buf[i] << endl;
+	}
+	cout<<endl;
+
+	closesocket(sock);
+
+	delete[] pkt;
+
+	printf("Terminating main(), completion time %d ms\n", timeGetTime() - t);
+
+	getchar();
+
+	WSACleanup();
+
+	return 0;
+}
+
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *rFRR, RRanswer *ansRR)
+{
 
 	cout << "ID=" << 102 << "??" << ntohs(rDNS->ID) << endl;
 	cout << "questions=" << ntohs(rDNS->questions) << endl;
@@ -186,32 +215,16 @@ int main(int argc, char* argv[])
 	printf("flag 0x=%x\n", ntohs(rDNS->flags));
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
-	rcode = rcode & ntohs(rDNS->flags);
-	cout << "Rcode= " << rcode << endl; ;
+	cout << "Rcode= " << rcode << endl;
 
-	cout << "Fixed RR: " << endl;
+	cout << endl << "Fixed RR: " << endl;
 	cout << "type: " << ntohs(rFRR->type) << endl;
 	cout << "RRclass: " << ntohs(rFRR->RRclass) << endl;
 	cout << "ttl: " << ntohs(rFRR->ttl) << endl;
 	cout << "len: " << ntohs(rFRR->len) << endl;
 
-	// for debugging:
-	for ( int i = 0; i< recvbytes; i++)
-	{
-		printf("%x\t", i, recv_buf[i] ); 
-	}
-	cout<<endl; 
+//	cout << endl << "Answer RR: " << endl;
+//	cout << "name: " << ansRR->name << endl;
+//	cout << "rdata: " << ansRR->rdata << endl;
 
-	closesocket(sock);
-
-	delete[] pkt;
-
-
-	printf("Terminating main(), completion time %d ms\n", timeGetTime() - t);
-
-	getchar();
-
-	WSACleanup();
-
-	return 0;
 }

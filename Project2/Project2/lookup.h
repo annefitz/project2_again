@@ -79,6 +79,17 @@ public:
 	u_int		ttl;	// 4 bytes
 	u_short		len;	// the length of the RDATA field
 						// RDATA field: a variable length string that describes the resource
+
+};
+#pragma pack(pop)
+
+#pragma pack(push)
+#pragma pack(1)
+class RRanswer {
+public:
+	unsigned char *name;
+	FixedRR *fixedrr;
+	unsigned char *rdata;
 };
 #pragma pack(pop)
 
@@ -90,5 +101,6 @@ public:
 	//bool MakePacket(char* pkt, FixedDNSheader *dnsheader, QueryHeader *queryheader);
 
 	bool CreatePacket(string host, short type, char * pkt, int pkt_size);
+
 
 };
