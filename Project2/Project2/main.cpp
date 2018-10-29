@@ -215,6 +215,24 @@ int main(int argc, char* argv[])
 	FixedRR * rFRR = (FixedRR *)(recv_buf + recvbytes - sizeof(FixedRR) - 1);
 	RRanswer * ansRR = (RRanswer *)(sizeof(FixedDNSheader) + host.size() + sizeof(QueryHeader));
 
+	unsigned short rcode = 0x0F;
+	rcode = rcode & ntohs(rDNS->flags);
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		getchar();
+		return -1;
+	}
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		getchar();
+		return -1;
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		getchar();
+		return -1;
+	}
+
 	PrintResponse(rDNS, rFRR, ansRR);
 
 	// for debugging:
@@ -257,19 +275,6 @@ void PrintResponse(FixedDNSheader *rDNS, FixedRR *rFRR, RRanswer *ansRR)
 	cout << "RRclass: " << ntohs(rFRR->RRclass) << endl;
 	cout << "ttl: " << ntohs(rFRR->ttl) << endl;
 	cout << "len: " << ntohs(rFRR->len) << endl;
-
-	if (rcode == 3) {
-		cout << "No DNS entry" << endl;
-		getchar();
-	} 
-	else if (rcode == 2) {
-		cout << "Authoritative DNS server not found" << endl;
-		getchar();
-	}
-	else if (rcode > 0) {
-		cout << "Error type: " << rcode << endl;
-		getchar();
-	}
 
 //	cout << endl << "Answer RR: " << endl;
 //	cout << "name: " << ansRR->name << endl;
