@@ -53,22 +53,41 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	int arg_type;
+	string backwardsIP;
 	string host = argv[1];
-	if (isdigit(host[0])) {
-		std::printf("IP\n");
-		arg_type = 1;
-		if (inet_addr(argv[1]) == INADDR_NONE) {
-			std::printf("Invalid IP");
-			getchar();
-			return -1;
+	if (host.find(".") != string::npos) {
+		if (isdigit(host[0])) {
+			std::printf("IP\n");
+			arg_type = 1;
+			if (inet_addr(argv[1]) == INADDR_NONE) {
+				std::printf("Invalid IP");
+				getchar();
+				return -1;
+			}
+			int position = host.find(".");
+			int i = 0; int size = 0;
+			while (position != string::npos) {
+				size = position - i;
+				backwardsIP.insert(0, host.substr(i, size));
+				backwardsIP.insert(0, ".");
+				i += size + 1;
+				position = host.find(".", i);
+			}
+			backwardsIP.insert(0, host.substr(i, host.length() - i));
+			cout << "FORWARD IP: " << host << " BACKWARDS IP: " << backwardsIP << endl;
+			host = backwardsIP + ".in-addr.arpa";
 		}
-		host = host + ".in-addr.arpa";
+		else {
+			std::printf("HOSTNAME\n");
+			arg_type = 2;
+		}
+		cout << "argc: " << argc << ", argv: " << host << endl;
 	}
 	else {
-		std::printf("HOSTNAME\n");
-		arg_type = 2;
+		cout << "BATCH LOOKUP, num threads: " << host << endl;
+		getchar();
+		return -1;
 	}
-	cout << "argc: " << argc << ", argv: " << host << endl;
 
 	WSADATA wsaData;
 
@@ -164,11 +183,27 @@ int main(int argc, char* argv[])
 	cout << endl;
 
 	char recv_buf[512];
+	//set timeout for receive
+	timeval* timeout = new timeval;
+	//set timeout for 10s
+	timeout->tv_sec = 10;
+	timeout->tv_usec = 0;
+	fd_set Sockets;
+	Sockets.fd_count = 1;
+	Sockets.fd_array[0] = sock;
 
 	int recvbytes = 0;
-	if (sentbytes > 0)
+	if (sentbytes > 0) {
 		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
-
+		if (select(0, NULL, &Sockets, NULL, timeout) > 0) {
+			cout << "No timeout!" << endl;
+			getchar();
+		}
+		else {
+			cout << "TIMEOUT" << endl;
+			getchar();
+		}
+	}
 	cout << "recv_bytes=" << recvbytes << endl;
 
 //	for (int i = 0; i < 100; i++)
@@ -183,11 +218,11 @@ int main(int argc, char* argv[])
 	PrintResponse(rDNS, rFRR, ansRR);
 
 	// for debugging:
-	for ( int i = 0; i < recvbytes; i++) //(sizeof(FixedDNSheader) + size(host) + sizeof(QueryHeader) + 16)
+	/*for ( int i = 0; i < recvbytes; i++) //(sizeof(FixedDNSheader) + size(host) + sizeof(QueryHeader) + 16)
 	{
 		printf("%d : %c\n", i, recv_buf[i]);
 		//cout << "i: " << i << " recv: " << recv_buf[i] << endl;
-	}
+	}*/
 	cout<<endl;
 
 	closesocket(sock);
@@ -222,6 +257,19 @@ void PrintResponse(FixedDNSheader *rDNS, FixedRR *rFRR, RRanswer *ansRR)
 	cout << "RRclass: " << ntohs(rFRR->RRclass) << endl;
 	cout << "ttl: " << ntohs(rFRR->ttl) << endl;
 	cout << "len: " << ntohs(rFRR->len) << endl;
+
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		getchar();
+	} 
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		getchar();
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		getchar();
+	}
 
 //	cout << endl << "Answer RR: " << endl;
 //	cout << "name: " << ansRR->name << endl;
