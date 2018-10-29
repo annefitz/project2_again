@@ -83,8 +83,8 @@ public:
 };
 #pragma pack(pop)
 
-#pragma pack(push)
-#pragma pack(1)
+#pragma pack(push)	// exact fit data into a structure with given size -- no padding
+#pragma pack(1)		// because the struct is 10 bytes
 class RRanswer {
 public:
 	unsigned char *name;
@@ -94,7 +94,7 @@ public:
 #pragma pack(pop)
 
 class Question{
-public: 
+public:
 
 	Question(void);			// constructor
 
