@@ -185,12 +185,9 @@ int main(int argc, char* argv[])
 
 	int recvbytes = 0;
 	if (sentbytes > 0) {
-		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
-<<<<<<< HEAD
 
-	char *reader = &recv_buf[sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader)];
-	
-=======
+		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
+
 		if (select(0, NULL, &Sockets, NULL, timeout) > 0) {
 			cout << "No timeout!" << endl;
 			getchar();
@@ -200,7 +197,9 @@ int main(int argc, char* argv[])
 			getchar();
 		}
 	}
->>>>>>> 80eef27c4809ca6a643178fdcee403fb3984d535
+
+	char *reader = &recv_buf[sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader)];
+
 	cout << "recv_bytes=" << recvbytes << endl;
 	cout << "RDR START: " << sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader) << endl;
 
@@ -212,14 +211,6 @@ int main(int argc, char* argv[])
 	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
 	RRanswer ansRR;
 
-<<<<<<< HEAD
-	int end_idx = 0;
-	getchar();
-	ansRR.name = getName(reader, recv_buf, &end_idx);
-
-	// for debugging
-	for (int i = 0; i < end_idx; i++) 
-=======
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
 	if (rcode == 3) {
@@ -238,15 +229,15 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	PrintResponse(rDNS, rFRR, ansRR);
+	int end_idx = 0;
+
+	ansRR.name = getName(reader, recv_buf, &end_idx);
 
 	// for debugging:
-	/*for ( int i = 0; i < recvbytes; i++) //(sizeof(FixedDNSheader) + size(host) + sizeof(QueryHeader) + 16)
->>>>>>> 80eef27c4809ca6a643178fdcee403fb3984d535
+	for ( int i = 0; i < recvbytes; i++)
 	{
 		printf("%d : %c\n", i, reader[i]);
 		//cout << "i: " << i << " recv: " << recv_buf[i] << endl;
-<<<<<<< HEAD
 	}
 	cout << endl;
 
@@ -276,10 +267,6 @@ int main(int argc, char* argv[])
 	}
 
 	PrintResponse(rDNS, &ansRR);
-=======
-	}*/
-	cout<<endl;
->>>>>>> 80eef27c4809ca6a643178fdcee403fb3984d535
 
 	closesocket(sock);
 
