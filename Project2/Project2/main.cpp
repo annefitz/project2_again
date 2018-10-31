@@ -18,6 +18,7 @@
 #include <iostream>
 
 string getName(u_char *parser, u_char *buf, int *idx);
+string dnsResponseConvert(string name);
 void PrintResponse(FixedDNSheader *rDNS, FixedRR *ansRR, string name, string rdata);
 
 // this class is passed to all threads, acts as shared memory
@@ -223,11 +224,9 @@ int main(int argc, char* argv[])
 	}
 
 	u_char *reader = (u_char*)
-		&recv_buf[sizeof(FixedDNSheader) + host.length() + 2 + sizeof(QueryHeader)];
+		&recv_buf[pkt_size];
 
 	cout << "recv_bytes=" << recvbytes << endl;
-	cout << "RDR START: " << sizeof(FixedDNSheader) + host.length() + 1 + sizeof(QueryHeader) << endl;
-
 //	for (int i = 0; i < recvbytes; i++)
 //	{
 //		cout << "recv= " << i << " " << recv_buf[i] << endl;
@@ -258,7 +257,7 @@ int main(int argc, char* argv[])
 
 	string name = getName(reader, (u_char*)recv_buf, &end_idx);
 	string rdata;
-
+	
 	// for debugging:
 	for (int i = 0; i < recvbytes; i++)
 	{
@@ -271,23 +270,23 @@ int main(int argc, char* argv[])
 	
 	FixedRR *fixedrr = (FixedRR *)reader;
 	reader = reader + sizeof(FixedRR);
-	
-	if (ntohs(fixedrr->type) == 1)
-	{		
+	for (int i = 0; i < ntohs(fixedrr->len); i++)
+		cout << "RESPONSE DATA: " << ntohs(reader[i]) << endl;
+
+	if (ntohs(fixedrr->type) == 1) // IP address
+	{
 		int i;
 		for (i = 0; i < ntohs(fixedrr->len); i++)
 		{
-			rdata.push_back(reader[i]);
+			rdata.push_back(ntohs(reader[i]));
+			rdata.push_back('.');
 		}
-		
-		rdata.push_back('\0');
 
-		reader = reader + ntohs(fixedrr->len);
+		//reader = reader + ntohs(fixedrr->len);
 	}
 	else
 	{
 		rdata = getName(reader, (u_char*) recv_buf, &end_idx);
-		reader = reader + end_idx;
 	}
 
 	PrintResponse(rDNS, fixedrr, name, rdata);
@@ -312,6 +311,7 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	int offset, i, j, num_bytes;
 	int arr_ptr = 0;
 
+	*idx = 1;
 	int count = 0;
 
 	// read the names in 3www6google3com format
@@ -323,11 +323,12 @@ string getName(u_char *parser, u_char *buf, int *idx)
 			compressed = true;
 			offset = (*parser) * 256 + *(parser + 1) - 49152; // 49152 = 11000000 00000000
 			parser = buf + offset - 1;
-			cout << "\nCHECK\n";
+			cout << "CHECK\n";
 		}
 		else
 		{
 			name.push_back(*parser);
+			cout << "ADDED: " << *parser << endl;
 		}
 
 		parser = parser + 1;
@@ -338,26 +339,32 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	cout << "AFTER BUILD : " << name << endl;
 	if (compressed)
 	{
-		*parser = *parser + 1; // number of steps we actually moved forward in the packet
+		*idx = *idx + 1; // number of steps we actually moved forward in the packet
 	}
 
-	getchar();
+	name = dnsResponseConvert(name);
 
+	return name;
+}
+
+string dnsResponseConvert(string name) {
 	// convert from <size><string><size><string>... (3www6google3com)
 	string host(name);
 	char seg_size;
-	
-	name.clear();
-	for (i = 0; i < static_cast<int>(host.length()); i++)
-	{
-		seg_size = (int)host[i];
 
+	name.clear();
+	for (int i = 0; i < static_cast<int>(host.length()); i++)
+	{
+		seg_size = host[i];
+		cout << "test: size - " << (int)seg_size << endl;
 		for (int j = 0; j < (int)seg_size; j++) {
 			name.push_back(host[++i]);
+			cout << "i: " << i << endl;
 		}
+		cout << "test1\n";
 		if (i < static_cast<int>(host.length()) - 1)
 			name.push_back('.');
-		
+
 	}
 
 	return name;
@@ -384,6 +391,6 @@ void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string r
 
 	cout << endl << "Answer RR: " << endl;
 	cout << "name: " << name << endl;
-	cout << "rdata: " << rdata << endl;
+	cout << "rdata: " << rdata.c_str() << endl;
 
 }
