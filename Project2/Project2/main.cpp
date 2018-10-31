@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	int arg_type;
+	int num_threads;
 	string backwardsIP;
 	string host = argv[1];
 	if (host.find(".") != string::npos) {
@@ -85,7 +86,30 @@ int main(int argc, char* argv[])
 	}
 	else {
 		cout << "BATCH LOOKUP, num threads: " << host << endl;
+		string filename = "dns-in.txt";
+		num_threads = stoi(argv[1]);
+		ifstream fin;
+		fin.open(filename);
+		if (fin.fail()) {
+			cout << "File failed to open.\n";
+			return -1;
+		}
+		else {
+			cout << "Opened " << filename << endl;
+		}
+		string url = "";
+		string port = "";
+		queue<string> inQ;
+		while (!fin.eof()) {
+			fin >> port;
+			//cout << port << endl;
+			fin >> url;
+			//cout << url << endl;
+			inQ.push(url);
+		}
+		cout << "Size of queue: " << inQ.size() << endl;
 		getchar();
+		
 		return -1;
 	}
 

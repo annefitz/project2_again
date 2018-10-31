@@ -6,6 +6,7 @@
 #include <queue>
 #include <map>
 #include <string>
+#include <fstream> // for file open, close
 
 
 using namespace std;		// if you're planning to use STL
