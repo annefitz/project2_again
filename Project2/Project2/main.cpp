@@ -17,8 +17,8 @@
 
 #include <iostream>
 
-unsigned char* getName(char *parser, char *buf, int *idx);
-void PrintResponse(FixedDNSheader *rDNS, RRanswer *ansRR);
+u_char* getName(u_char *parser, u_char *buf, int *idx);
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *ansRR, u_char* name, u_char* rdata);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -198,7 +198,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	char *reader = &recv_buf[sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader)];
+	unsigned char *reader = (unsigned char*)
+		&recv_buf[sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader)];
 
 	cout << "recv_bytes=" << recvbytes << endl;
 	cout << "RDR START: " << sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader) << endl;
@@ -209,7 +210,7 @@ int main(int argc, char* argv[])
 //	}
 
 	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
-	RRanswer ansRR;
+	FixedRR ansRR;
 
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
@@ -231,42 +232,43 @@ int main(int argc, char* argv[])
 
 	int end_idx = 0;
 
-	ansRR.name = getName(reader, recv_buf, &end_idx);
+	u_char* name = getName(reader, (u_char*)recv_buf, &end_idx);
+	u_char* rdata;
 
 	// for debugging:
-	for ( int i = 0; i < recvbytes; i++)
+	for (int i = 0; i < recvbytes; i++)
 	{
-		printf("%d : %c\n", i, reader[i]);
+		//printf("%d : %c\n", i, reader[i]);
 		//cout << "i: " << i << " recv: " << recv_buf[i] << endl;
 	}
 	cout << endl;
 
 	reader = reader + end_idx;
 	
-	ansRR.fixedrr = (FixedRR *)reader;
+	FixedRR *fixedrr = (FixedRR *)reader;
 	reader = reader + sizeof(FixedRR);
 	
-	if (ntohs(ansRR.fixedrr->type) == 1)
+	if (ntohs(fixedrr->type) == 1)
 	{
-		ansRR.rdata = new unsigned char[ntohs(ansRR.fixedrr->len)];
+		rdata = new unsigned char[ntohs(fixedrr->len)];
 		
 		int i;
-		for (i = 0; i < ntohs(ansRR.fixedrr->len); i++)
+		for (i = 0; i < ntohs(fixedrr->len); i++)
 		{
-			ansRR.rdata[i] = reader[i];
+			rdata[i] = reader[i];
 		}
 		
-		ansRR.rdata[ntohs(ansRR.fixedrr->len)] = '\0';
+		rdata[ntohs(fixedrr->len)] = '\0';
 
-		reader = reader + ntohs(ansRR.fixedrr->len);
+		reader = reader + ntohs(fixedrr->len);
 	}
 	else
 	{
-		ansRR.rdata = getName(reader, recv_buf, &end_idx);
+		rdata = getName(reader, (unsigned char*) recv_buf, &end_idx);
 		reader = reader + end_idx;
 	}
 
-	PrintResponse(rDNS, &ansRR);
+	PrintResponse(rDNS, fixedrr, name, rdata);
 
 	closesocket(sock);
 
@@ -281,28 +283,19 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-unsigned char* getName(char *parser, char *buf, int *idx)
+u_char* getName(u_char *parser, u_char *buf, int *idx)
 {
-	unsigned char name[256]; // max size of domain name
+	u_char name[256]; // max size of domain name
 	bool compressed = false;
-	int offset, i, j;
+	int offset, i, j, num_bytes;
 	int arr_ptr = 0;
 
-	char *test = parser;
-
-	for (int k = 0; k < strlen(test); k++) {
-		cout << "PARSE TEST: " << *test << endl;
-		test = test + 1;
-	}
-
-	*idx = 1;
-
-	name[arr_ptr] = '\0'; // null byte
+	int count = 0;
 
 	// read the names in 3www6google3com format
 	while (*parser != 0)
 	{
-		cout << "\n GETNAME IDX: " << *idx << endl;
+		//cout << "\n GETNAME IDX: " << *idx << endl;
 		if (*parser >= 192)
 		{
 			compressed = true;
@@ -312,9 +305,10 @@ unsigned char* getName(char *parser, char *buf, int *idx)
 		}
 		else
 		{
-			arr_ptr++;
 			name[arr_ptr] = *parser;
 			cout << "\n GETNAME NAME ADD: " << name[arr_ptr] << endl;
+			cout << "\n GETNAME LEN: " << arr_ptr << endl;
+			arr_ptr++; count++;
 		}
 
 		parser = parser + 1;
@@ -322,20 +316,27 @@ unsigned char* getName(char *parser, char *buf, int *idx)
 		if (!compressed)
 			*idx = *idx + 1; // if it isn't compressed (hasn't jumped) then we count up
 	}
-	//arr_ptr++;
-	name[arr_ptr] = '\0'; // string complete
 	
+	name[arr_ptr] = '\0'; // string complete
+	arr_ptr++; count++;
+
+	for (int a = 0; a < count; a++)
+		cout << "printing name array: " << name[a] << endl;
+
 	if (compressed)
 	{
 		*parser = *parser + 1; // number of steps we actually moved forward in the packet
 	}
-	cout << "\n GETNAME LEN: " << strlen((char*)name) << endl;
+	cout << "COUNT: " << count << endl;
+	getchar();
 	// convert from <size><string><size><string>... (3www6google3com)
-	for (i = 0; i < strlen((char*)name); i++)
+	for (i = 0; i < count; i++)
 	{
-		arr_ptr = ntohs(name[i]); // get number of indexes to read from
-		for (j = 0; j < (int)arr_ptr; j++)
+		num_bytes = (int)name[i]; // get number of indexes to read from
+		cout << "num_bytes: " << num_bytes << endl;
+		for (j = 0; j < num_bytes; j++)
 		{
+			//cout << "TEST LOOP\n";
 			name[i] = name[i + 1]; // move each letter back a spot
 			i++;
 		}
@@ -347,9 +348,8 @@ unsigned char* getName(char *parser, char *buf, int *idx)
 	return name;
 }
 
-void PrintResponse(FixedDNSheader *rDNS, RRanswer *ansRR)
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, u_char* name, u_char* rdata)
 {
-
 	cout << "ID=" << 102 << "??" << ntohs(rDNS->ID) << endl;
 	cout << "questions=" << ntohs(rDNS->questions) << endl;
 	cout << "Answers=" << ntohs(rDNS->answers) << endl;
@@ -362,13 +362,13 @@ void PrintResponse(FixedDNSheader *rDNS, RRanswer *ansRR)
 	cout << "Rcode= " << rcode << endl;
 
 	cout << endl << "Fixed RR: " << endl;
-	cout << "type: " << ntohs(ansRR->fixedrr->type) << endl;
-	cout << "RRclass: " << ntohs(ansRR->fixedrr->RRclass) << endl;
-	cout << "ttl: " << ntohs(ansRR->fixedrr->ttl) << endl;
-	cout << "len: " << ntohs(ansRR->fixedrr->len) << endl;
+	cout << "type: " << ntohs(fixedrr->type) << endl;
+	cout << "RRclass: " << ntohs(fixedrr->RRclass) << endl;
+	cout << "ttl: " << ntohs(fixedrr->ttl) << endl;
+	cout << "len: " << ntohs(fixedrr->len) << endl;
 
 	cout << endl << "Answer RR: " << endl;
-	cout << "name: " << ansRR->name << endl;
-	cout << "rdata: " << ansRR->rdata << endl;
+	cout << "name: " << name << endl;
+	cout << "rdata: " << rdata << endl;
 
 }

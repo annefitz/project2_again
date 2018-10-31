@@ -79,17 +79,6 @@ public:
 	u_int		ttl;	// 4 bytes
 	u_short		len;	// the length of the RDATA field
 						// RDATA field: a variable length string that describes the resource
-
-};
-#pragma pack(pop)
-
-#pragma pack(push)	// exact fit data into a structure with given size -- no padding
-#pragma pack(1)		// because the struct is 10 bytes
-class RRanswer {
-public:
-	unsigned char *name;
-	FixedRR *fixedrr;
-	unsigned char *rdata;
 };
 #pragma pack(pop)
 
