@@ -355,6 +355,7 @@ string dnsResponseConvert(string name) {
 
 void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string rdata)
 {
+<<<<<<< HEAD
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
 
@@ -378,4 +379,9 @@ void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string r
 	if (ntohs(fixedrr->type) == 5) {
 		cout << name << " is aliased to " << rdata.c_str() << endl;
 	}
+=======
+	cout << "Answer RR: " << endl;
+	cout << "name: " << name << endl;
+	cout << "rdata: " << rdata.c_str() << endl;
+>>>>>>> 06ec56e869961b7d79516072ab1a3f2909bc2316
 }
