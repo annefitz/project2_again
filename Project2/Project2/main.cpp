@@ -258,12 +258,6 @@ int main(int argc, char* argv[])
 	string name = getName(reader, (u_char*)recv_buf, &end_idx);
 	string rdata;
 	
-	// for debugging:
-	for (int i = 0; i < recvbytes; i++)
-	{
-		//printf("%d : %c\n", i, reader[i]);
-		//cout << "i: " << i << " recv: " << recv_buf[i] << endl;
-	}
 	cout << endl;
 
 	reader = reader + end_idx;
@@ -370,5 +364,5 @@ void PrintResponse(string name, string rdata)
 {
 	cout << "Answer RR: " << endl;
 	cout << "name: " << name << endl;
-	cout << "rdata: " << rdata.c_str() << endl;
+	cout << "rdata: " << rdata << endl;
 }
