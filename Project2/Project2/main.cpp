@@ -19,7 +19,7 @@
 
 string getName(u_char *parser, u_char *buf, int *idx);
 string dnsResponseConvert(string name);
-void PrintResponse(FixedDNSheader *rDNS, FixedRR *ansRR, string name, string rdata);
+void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -253,26 +253,24 @@ int main(int argc, char* argv[])
 	
 	FixedRR *fixedrr = (FixedRR *)reader;
 	reader = reader + sizeof(FixedRR);
-	for (int i = 0; i < ntohs(fixedrr->len); i++)
-		cout << "RESPONSE DATA: " << ntohs(reader[i]) << endl;
 
 	if (ntohs(fixedrr->type) == 1) // IP address
 	{
 		int i;
 		for (i = 0; i < ntohs(fixedrr->len); i++)
 		{
-			rdata.push_back(ntohs(reader[i]));
+			rdata.append(to_string((int)reader[i]));
 			rdata.push_back('.');
 		}
 
-		//reader = reader + ntohs(fixedrr->len);
+		rdata.pop_back(); // remove the last period
 	}
 	else
 	{
 		rdata = getName(reader, (u_char*) recv_buf, &end_idx);
 	}
 
-	PrintResponse(rDNS, fixedrr, name, rdata);
+	PrintResponse(name, rdata, rDNS, fixedrr);
 
 	closesocket(sock);
 
@@ -306,12 +304,10 @@ string getName(u_char *parser, u_char *buf, int *idx)
 			compressed = true;
 			offset = (*parser) * 256 + *(parser + 1) - 49152; // 49152 = 11000000 00000000
 			parser = buf + offset - 1;
-			cout << "CHECK\n";
 		}
 		else
 		{
 			name.push_back(*parser);
-			cout << "ADDED: " << *parser << endl;
 		}
 
 		parser = parser + 1;
@@ -319,7 +315,7 @@ string getName(u_char *parser, u_char *buf, int *idx)
 		if (!compressed)
 			*idx = *idx + 1; // if it isn't compressed (hasn't jumped) then we count up
 	}
-	cout << "AFTER BUILD : " << name << endl;
+
 	if (compressed)
 	{
 		*idx = *idx + 1; // number of steps we actually moved forward in the packet
@@ -330,8 +326,9 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	return name;
 }
 
+// convert from <size><string><size><string>... (3www6google3com)
 string dnsResponseConvert(string name) {
-	// convert from <size><string><size><string>... (3www6google3com)
+
 	string host(name);
 	char seg_size;
 
@@ -339,12 +336,11 @@ string dnsResponseConvert(string name) {
 	for (int i = 0; i < static_cast<int>(host.length()); i++)
 	{
 		seg_size = host[i];
-		cout << "test: size - " << (int)seg_size << endl;
+
 		for (int j = 0; j < (int)seg_size; j++) {
 			name.push_back(host[++i]);
-			cout << "i: " << i << endl;
 		}
-		cout << "test1\n";
+
 		if (i < static_cast<int>(host.length()) - 1)
 			name.push_back('.');
 
@@ -353,9 +349,9 @@ string dnsResponseConvert(string name) {
 	return name;
 }
 
-void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string rdata)
+void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
-<<<<<<< HEAD
+
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
 
@@ -377,11 +373,9 @@ void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string r
 	cout << endl << endl << "Answer:" << endl;
 
 	if (ntohs(fixedrr->type) == 5) {
-		cout << name << " is aliased to " << rdata.c_str() << endl;
+		cout << name << " is aliased to " << rdata << endl;
 	}
-=======
-	cout << "Answer RR: " << endl;
-	cout << "name: " << name << endl;
-	cout << "rdata: " << rdata.c_str() << endl;
->>>>>>> 06ec56e869961b7d79516072ab1a3f2909bc2316
+	else if (ntohs(fixedrr->type) == 1) {
+		cout << name << " is " << rdata << endl;
+	}
 }
