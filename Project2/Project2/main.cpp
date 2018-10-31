@@ -17,8 +17,8 @@
 
 #include <iostream>
 
-u_char* getName(u_char *parser, u_char *buf, int *idx);
-void PrintResponse(FixedDNSheader *rDNS, FixedRR *ansRR, u_char* name, u_char* rdata);
+string getName(u_char *parser, u_char *buf, int *idx);
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *ansRR, string name, string rdata);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 		}
 		cout << "argc: " << argc << ", argv: " << host << endl;
 	}
-	else {
+	/*else {
 		cout << "BATCH LOOKUP, num threads: " << host << endl;
 		string filename = "dns-in.txt";
 		num_threads = stoi(argv[1]);
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 		getchar();
 		
 		return -1;
-	}
+	}*/
 
 	WSADATA wsaData;
 
@@ -222,11 +222,11 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	unsigned char *reader = (unsigned char*)
-		&recv_buf[sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader)];
+	u_char *reader = (u_char*)
+		&recv_buf[sizeof(FixedDNSheader) + host.length() + 2 + sizeof(QueryHeader)];
 
 	cout << "recv_bytes=" << recvbytes << endl;
-	cout << "RDR START: " << sizeof(FixedDNSheader) + host.size() + 1 + sizeof(QueryHeader) << endl;
+	cout << "RDR START: " << sizeof(FixedDNSheader) + host.length() + 1 + sizeof(QueryHeader) << endl;
 
 //	for (int i = 0; i < recvbytes; i++)
 //	{
@@ -256,8 +256,8 @@ int main(int argc, char* argv[])
 
 	int end_idx = 0;
 
-	u_char* name = getName(reader, (u_char*)recv_buf, &end_idx);
-	u_char* rdata;
+	string name = getName(reader, (u_char*)recv_buf, &end_idx);
+	string rdata;
 
 	// for debugging:
 	for (int i = 0; i < recvbytes; i++)
@@ -273,22 +273,20 @@ int main(int argc, char* argv[])
 	reader = reader + sizeof(FixedRR);
 	
 	if (ntohs(fixedrr->type) == 1)
-	{
-		rdata = new unsigned char[ntohs(fixedrr->len)];
-		
+	{		
 		int i;
 		for (i = 0; i < ntohs(fixedrr->len); i++)
 		{
-			rdata[i] = reader[i];
+			rdata.push_back(reader[i]);
 		}
 		
-		rdata[ntohs(fixedrr->len)] = '\0';
+		rdata.push_back('\0');
 
 		reader = reader + ntohs(fixedrr->len);
 	}
 	else
 	{
-		rdata = getName(reader, (unsigned char*) recv_buf, &end_idx);
+		rdata = getName(reader, (u_char*) recv_buf, &end_idx);
 		reader = reader + end_idx;
 	}
 
@@ -307,9 +305,9 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-u_char* getName(u_char *parser, u_char *buf, int *idx)
+string getName(u_char *parser, u_char *buf, int *idx)
 {
-	u_char name[256]; // max size of domain name
+	string name;
 	bool compressed = false;
 	int offset, i, j, num_bytes;
 	int arr_ptr = 0;
@@ -329,10 +327,7 @@ u_char* getName(u_char *parser, u_char *buf, int *idx)
 		}
 		else
 		{
-			name[arr_ptr] = *parser;
-			cout << "\n GETNAME NAME ADD: " << name[arr_ptr] << endl;
-			cout << "\n GETNAME LEN: " << arr_ptr << endl;
-			arr_ptr++; count++;
+			name.push_back(*parser);
 		}
 
 		parser = parser + 1;
@@ -340,39 +335,35 @@ u_char* getName(u_char *parser, u_char *buf, int *idx)
 		if (!compressed)
 			*idx = *idx + 1; // if it isn't compressed (hasn't jumped) then we count up
 	}
-	
-	name[arr_ptr] = '\0'; // string complete
-	arr_ptr++; count++;
-
-	for (int a = 0; a < count; a++)
-		cout << "printing name array: " << name[a] << endl;
-
+	cout << "AFTER BUILD : " << name << endl;
 	if (compressed)
 	{
 		*parser = *parser + 1; // number of steps we actually moved forward in the packet
 	}
-	cout << "COUNT: " << count << endl;
-	getchar();
-	// convert from <size><string><size><string>... (3www6google3com)
-	for (i = 0; i < count; i++)
-	{
-		num_bytes = (int)name[i]; // get number of indexes to read from
-		cout << "num_bytes: " << num_bytes << endl;
-		for (j = 0; j < num_bytes; j++)
-		{
-			//cout << "TEST LOOP\n";
-			name[i] = name[i + 1]; // move each letter back a spot
-			i++;
-		}
-		name[i] = '.'; // add . since at end of name segment
-	}
 
-	name[i] = '\0'; // exclude the last .
+	getchar();
+
+	// convert from <size><string><size><string>... (3www6google3com)
+	string host(name);
+	char seg_size;
+	
+	name.clear();
+	for (i = 0; i < static_cast<int>(host.length()); i++)
+	{
+		seg_size = (int)host[i];
+
+		for (int j = 0; j < (int)seg_size; j++) {
+			name.push_back(host[++i]);
+		}
+		if (i < static_cast<int>(host.length()) - 1)
+			name.push_back('.');
+		
+	}
 
 	return name;
 }
 
-void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, u_char* name, u_char* rdata)
+void PrintResponse(FixedDNSheader *rDNS, FixedRR *fixedrr, string name, string rdata)
 {
 	cout << "ID=" << 102 << "??" << ntohs(rDNS->ID) << endl;
 	cout << "questions=" << ntohs(rDNS->questions) << endl;
