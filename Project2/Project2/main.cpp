@@ -19,7 +19,7 @@
 
 string getName(u_char *parser, u_char *buf, int *idx);
 string dnsResponseConvert(string name);
-void PrintResponse(string name, string rdata);
+void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -85,10 +85,10 @@ int main(int argc, char* argv[])
 		}
 		cout << "argc: " << argc << ", argv: " << host << endl;
 	}
-	/*else {
-		cout << "BATCH LOOKUP, num threads: " << host << endl;
+	else {
 		string filename = "dns-in.txt";
 		num_threads = stoi(argv[1]);
+		cout << "BATCH LOOKUP, num threads: " << num_threads << endl;
 		ifstream fin;
 		fin.open(filename);
 		if (fin.fail()) {
@@ -108,11 +108,12 @@ int main(int argc, char* argv[])
 			//cout << url << endl;
 			inQ.push(url);
 		}
+		fin.close();
 		cout << "Size of queue: " << inQ.size() << endl;
 		getchar();
 		
 		return -1;
-	}*/
+	}
 
 	WSADATA wsaData;
 
@@ -235,24 +236,6 @@ int main(int argc, char* argv[])
 	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
 	FixedRR ansRR;
 
-	unsigned short rcode = 0x0F;
-	rcode = rcode & ntohs(rDNS->flags);
-	if (rcode == 3) {
-		cout << "No DNS entry" << endl;
-		getchar();
-		return -1;
-	}
-	else if (rcode == 2) {
-		cout << "Authoritative DNS server not found" << endl;
-		getchar();
-		return -1;
-	}
-	else if (rcode > 0) {
-		cout << "Error type: " << rcode << endl;
-		getchar();
-		return -1;
-	}
-
 	int end_idx = 0;
 
 	string name = getName(reader, (u_char*)recv_buf, &end_idx);
@@ -281,7 +264,7 @@ int main(int argc, char* argv[])
 		rdata = getName(reader, (u_char*) recv_buf, &end_idx);
 	}
 
-	PrintResponse(name, rdata);
+	PrintResponse(name, rdata, rDNS, fixedrr);
 
 	closesocket(sock);
 
@@ -360,9 +343,39 @@ string dnsResponseConvert(string name) {
 	return name;
 }
 
-void PrintResponse(string name, string rdata)
+void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
+<<<<<<< HEAD
 	cout << "Answer RR: " << endl;
 	cout << "name: " << name << endl;
 	cout << "rdata: " << rdata << endl;
+=======
+
+	unsigned short rcode = 0x0F;
+	rcode = rcode & ntohs(rDNS->flags);
+
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		getchar();
+		return;
+	}
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		getchar();
+		return;
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		getchar();
+		return;
+	}
+	cout << endl << endl << "Answer:" << endl;
+
+	if (ntohs(fixedrr->type) == 5) {
+		cout << name << " is aliased to " << rdata << endl;
+	}
+	else if (ntohs(fixedrr->type) == 1) {
+		cout << name << " is " << rdata << endl;
+	}
+>>>>>>> dd0dd7a4dde6ec6c74c79153e4f8aa409430a1d7
 }
