@@ -84,6 +84,27 @@ int main(int argc, char* argv[])
 			arg_type = 2;
 		}
 		cout << "argc: " << argc << ", argv: " << host << endl;
+		// thread handles are stored here; they can be used to check status of threads, or kill them
+		HANDLE *ptrs = new HANDLE[2];
+		Parameters p;
+
+		// create a mutex for accessing critical sections (including printf)
+		p.mutex = CreateMutex(NULL, 0, NULL);
+
+		// create a semaphore that counts the number of active threads
+		p.finished = CreateSemaphore(NULL, 0, 2, NULL);
+		p.eventQuit = CreateEvent(NULL, true, false, NULL);
+
+		// get current time
+		DWORD t = timeGetTime();
+
+		// structure p is the shared space between the threads
+		ptrs[0] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
+		ptrs[1] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
+
+		// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
+		WaitForSingleObject(p.finished, INFINITE);
+		WaitForSingleObject(p.finished, INFINITE);
 	}
 	else {
 		string filename = "dns-in.txt";
@@ -112,7 +133,28 @@ int main(int argc, char* argv[])
 		cout << "Size of queue: " << inQ.size() << endl;
 		getchar();
 		
-		return -1;
+		// thread handles are stored here; they can be used to check status of threads, or kill them
+		HANDLE *ptrs = new HANDLE[num_threads];
+		Parameters p;
+
+		// create a mutex for accessing critical sections (including printf)
+		p.mutex = CreateMutex(NULL, 0, NULL);
+
+		// create a semaphore that counts the number of active threads
+		p.finished = CreateSemaphore(NULL, 0, num_threads, NULL);
+		p.eventQuit = CreateEvent(NULL, true, false, NULL);
+
+		// get current time
+		DWORD t = timeGetTime();
+
+		// structure p is the shared space between the threads
+		for (int i = 0; i < num_threads; i++) {
+			ptrs[i] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
+		}
+		// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
+		for (int i = 0; i < num_threads; i++) {
+			WaitForSingleObject(p.finished, INFINITE);
+		}
 	}
 
 	WSADATA wsaData;
@@ -149,28 +191,6 @@ int main(int argc, char* argv[])
 	printf("current CPU utilization %f%%\n", util);
 
 	printf("-----------------\n");
-
-	// thread handles are stored here; they can be used to check status of threads, or kill them
-	HANDLE *ptrs = new HANDLE[2];
-	Parameters p;
-
-	// create a mutex for accessing critical sections (including printf)
-	p.mutex = CreateMutex(NULL, 0, NULL);
-
-	// create a semaphore that counts the number of active threads
-	p.finished = CreateSemaphore(NULL, 0, 2, NULL);
-	p.eventQuit = CreateEvent(NULL, true, false, NULL);
-
-	// get current time
-	DWORD t = timeGetTime();
-
-	// structure p is the shared space between the threads
-	ptrs[0] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-	ptrs[1] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-
-	// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
-	WaitForSingleObject(p.finished, INFINITE);
-	WaitForSingleObject(p.finished, INFINITE);
 
 	// -------------------------------  testing the DNS query  --------------------------------------------
 
