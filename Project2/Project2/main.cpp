@@ -306,6 +306,7 @@ Stats resolveDNSbyName(string host, int arg_type) {
 		}
 		else {
 			cout << "TIMEOUT" << endl;
+			stats.numTimeout++;
 			getchar();
 		}
 	}
@@ -345,12 +346,37 @@ Stats resolveDNSbyName(string host, int arg_type) {
 	{
 		rdata = getName(reader, (u_char*)recv_buf, &end_idx);
 	}
+	unsigned short rcode = 0x0F;
+	rcode = rcode & ntohs(rDNS->flags);
+
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		stats.numNoDNS++;
+		getchar();
+		return;
+	}
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		stats.numNoAuth++;
+		getchar();
+		return;
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		getchar();
+		return;
+	}
 
 	PrintResponse(name, rdata, rDNS, fixedrr);
 
 	closesocket(sock);
 
 	delete[] pkt;
+
+	stats.num_tasks--;
+	
+
+	return stats;
 }
 
 // convert from <size><string><size><string>... (3www6google3com)
@@ -378,24 +404,6 @@ string dnsResponseConvert(string name) {
 
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
-	unsigned short rcode = 0x0F;
-	rcode = rcode & ntohs(rDNS->flags);
-
-	if (rcode == 3) {
-		cout << "No DNS entry" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode == 2) {
-		cout << "Authoritative DNS server not found" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode > 0) {
-		cout << "Error type: " << rcode << endl;
-		getchar();
-		return;
-	}
 	cout << endl << endl << "Answer:" << endl;
 
 	if (ntohs(fixedrr->type) == 5) {
