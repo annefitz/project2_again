@@ -27,6 +27,8 @@ public:
 	HANDLE mutex;
 	HANDLE finished;
 	HANDLE eventQuit;
+	HANDLE inQ;
+	int num_tasks;
 };
 
 // this function is where the thread starts
@@ -57,6 +59,7 @@ int main(int argc, char* argv[])
 	int num_threads;
 	string backwardsIP;
 	string host = argv[1];
+	DWORD t;
 	if (host.find(".") != string::npos) {
 		if (isdigit(host[0])) {
 			std::printf("IP\n");
@@ -96,7 +99,7 @@ int main(int argc, char* argv[])
 		p.eventQuit = CreateEvent(NULL, true, false, NULL);
 
 		// get current time
-		DWORD t = timeGetTime();
+		t = timeGetTime();
 
 		// structure p is the shared space between the threads
 		ptrs[0] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
@@ -143,9 +146,10 @@ int main(int argc, char* argv[])
 		// create a semaphore that counts the number of active threads
 		p.finished = CreateSemaphore(NULL, 0, num_threads, NULL);
 		p.eventQuit = CreateEvent(NULL, true, false, NULL);
-
+		p.inQ = &inQ;
+		p.num_tasks = size(inQ);
 		// get current time
-		DWORD t = timeGetTime();
+		t = timeGetTime();
 
 		// structure p is the shared space between the threads
 		for (int i = 0; i < num_threads; i++) {
