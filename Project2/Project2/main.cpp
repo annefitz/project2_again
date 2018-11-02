@@ -335,6 +335,8 @@ Stats resolveDNSbyName(string host, int arg_type) {
 	closesocket(sock);
 
 	delete[] pkt;
+
+	return stats;
 }
 
 // convert from <size><string><size><string>... (3www6google3com)
