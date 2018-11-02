@@ -18,6 +18,7 @@
 #include <iostream>
 
 string getName(u_char *parser, u_char *buf, int *idx);
+void resolveDNSbyName(string host, int arg_type);
 string dnsResponseConvert(string name);
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
 
@@ -40,6 +41,8 @@ UINT thread(LPVOID pParam)
 	Sleep(1000);
 	ReleaseMutex(p->mutex);										// release critical section
 
+	//resolveDNSbyName(host, arg_type);
+
 	// signal that this thread has exited
 	ReleaseSemaphore(p->finished, 1, NULL);
 
@@ -53,10 +56,23 @@ int main(int argc, char* argv[])
 		getchar();
 		return -1;
 	}
+	DWORD t;
 	int arg_type;
 	int num_threads;
 	string backwardsIP;
 	string host = argv[1];
+
+	WSADATA wsaData;
+
+	// Initialize WinSock in your project only once!
+	WORD wVersionRequested = MAKEWORD(2, 2);
+	if (WSAStartup(wVersionRequested, &wsaData) != 0) {
+		printf("WSAStartup error %d\n", WSAGetLastError());
+		WSACleanup();
+		getchar();
+		return -1;
+	}
+
 	if (host.find(".") != string::npos) {
 		if (isdigit(host[0])) {
 			std::printf("IP\n");
@@ -96,15 +112,9 @@ int main(int argc, char* argv[])
 		p.eventQuit = CreateEvent(NULL, true, false, NULL);
 
 		// get current time
-		DWORD t = timeGetTime();
+		t = timeGetTime();
 
-		// structure p is the shared space between the threads
-		ptrs[0] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-		ptrs[1] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-
-		// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
-		WaitForSingleObject(p.finished, INFINITE);
-		WaitForSingleObject(p.finished, INFINITE);
+		resolveDNSbyName(host, arg_type);
 	}
 	else {
 		string filename = "dns-in.txt";
@@ -157,51 +167,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	WSADATA wsaData;
-
-	// Initialize WinSock in your project only once!
-	WORD wVersionRequested = MAKEWORD(2, 2);
-	if (WSAStartup(wVersionRequested, &wsaData) != 0) {
-		printf("WSAStartup error %d\n", WSAGetLastError());
-		WSACleanup();
-		getchar();
-		return -1;
-	}
-
 	printf("-----------------\n");
-
-	CPU cpu;
-	// average CPU utilization over 500 ms; must sleep *after* the constructor of class CPU and between calls to GetCpuUtilization
-	Sleep(500);
-	// now print
-	double util = cpu.GetCpuUtilization(NULL);
-	printf("current CPU utilization %f%%\n", util);
-
-	printf("-----------------\n");
-
-<<<<<<< HEAD
-	// thread handles are stored here; they can be used to check status of threads, or kill them
-	HANDLE *ptrs = new HANDLE[2];
-	Parameters p;
-
-	// create a mutex for accessing critical sections (including printf)
-	p.mutex = CreateMutex(NULL, 0, NULL);
-
-	// create a semaphore that counts the number of active threads
-	p.finished = CreateSemaphore(NULL, 0, 2, NULL);
-	p.eventQuit = CreateEvent(NULL, true, false, NULL);
-
-	// get current time
-	DWORD t = timeGetTime();
-
-	// structure p is the shared space between the threads
-	ptrs[0] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-	ptrs[1] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
-
-	// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
-	WaitForSingleObject(p.finished, INFINITE);
-	WaitForSingleObject(p.finished, INFINITE);
-
 	printf("Terminating main(), completion time %d ms\n", timeGetTime() - t);
 
 	getchar();
@@ -253,6 +219,7 @@ string getName(u_char *parser, u_char *buf, int *idx)
 }
 
 void resolveDNSbyName(string host, int arg_type) {
+
 	// print our primary/secondary DNS IPs
 	DNS mydns;
 	string dnsIP = "";
@@ -264,9 +231,6 @@ void resolveDNSbyName(string host, int arg_type) {
 	send_addr.sin_addr.S_un.S_addr = inet_addr(dnsIP.c_str()); // 208.67.222.222
 
 	send_addr.sin_port = htons(53);
-=======
-	// -------------------------------  testing the DNS query  --------------------------------------------
->>>>>>> cf095960a3918bf09ab8effec95dd48f97cb56cf
 
 	Question q;
 
