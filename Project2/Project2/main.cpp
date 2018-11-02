@@ -40,7 +40,7 @@ UINT thread(LPVOID pParam)
 	Sleep(1000);
 	ReleaseMutex(p->mutex);										// release critical section
 
-	// signal that this thread has exitted
+	// signal that this thread has exited
 	ReleaseSemaphore(p->finished, 1, NULL);
 
 	return 0;
@@ -128,19 +128,6 @@ int main(int argc, char* argv[])
 
 	printf("-----------------\n");
 
-	// print our primary/secondary DNS IPs
-	DNS mydns;
-	string dnsIP = "";
-	mydns.printDNSServer(dnsIP);
-
-	// set up the address of where we're sending data
-	struct sockaddr_in send_addr;
-	send_addr.sin_family = AF_INET;
-	send_addr.sin_addr.S_un.S_addr = inet_addr(dnsIP.c_str()); // 208.67.222.222
-	send_addr.sin_port = htons(53);
-
-	printf("-----------------\n");
-
 	CPU cpu;
 	// average CPU utilization over 500 ms; must sleep *after* the constructor of class CPU and between calls to GetCpuUtilization
 	Sleep(500);
@@ -171,104 +158,6 @@ int main(int argc, char* argv[])
 	// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
 	WaitForSingleObject(p.finished, INFINITE);
 	WaitForSingleObject(p.finished, INFINITE);
-
-	// -------------------------------  testing the DNS query  --------------------------------------------
-
-	Question q;
-
-	//+1 byte for "size" for last substring, +1 for "0" meaning the end of question
-	size_t pkt_size = sizeof(FixedDNSheader) + host.size() + 2 + sizeof(QueryHeader);
-	char *pkt = new char[pkt_size];
-
-	//q.MakePacket(pkt, dHDR, qHDR);
-	q.CreatePacket(host, arg_type, pkt, pkt_size);
-
-	Winsock ws;
-
-	SOCKET sock = ws.OpenSocket(); // defined in winsock.h
-
-	int send_addrSize = sizeof(struct sockaddr_in);
-
-	int sentbytes = sendto(sock, pkt, pkt_size, 0, (struct sockaddr*) &send_addr, send_addrSize);
-	cout << "sentbytes=" << sentbytes << endl;
-
-//	for (int i = 0; i < pkt_size; i++)
-//	{
-//		cout << "i= " << i << " " << pkt[i] << endl;
-//	}
-
-	cout << endl;
-
-	char recv_buf[512];
-	//set timeout for receive
-	timeval* timeout = new timeval;
-	//set timeout for 10s
-	timeout->tv_sec = 10;
-	timeout->tv_usec = 0;
-	fd_set Sockets;
-	Sockets.fd_count = 1;
-	Sockets.fd_array[0] = sock;
-
-	int recvbytes = 0;
-	if (sentbytes > 0) {
-
-		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
-
-		if (select(0, NULL, &Sockets, NULL, timeout) > 0) {
-			cout << "No timeout!" << endl;
-			getchar();
-		}
-		else {
-			cout << "TIMEOUT" << endl;
-			getchar();
-		}
-	}
-
-	u_char *reader = (u_char*)
-		&recv_buf[pkt_size];
-
-	cout << "recv_bytes=" << recvbytes << endl;
-//	for (int i = 0; i < recvbytes; i++)
-//	{
-//		cout << "recv= " << i << " " << recv_buf[i] << endl;
-//	}
-
-	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
-	FixedRR ansRR;
-
-	int end_idx = 0;
-
-	string name = getName(reader, (u_char*)recv_buf, &end_idx);
-	string rdata;
-	
-	cout << endl;
-
-	reader = reader + end_idx;
-	
-	FixedRR *fixedrr = (FixedRR *)reader;
-	reader = reader + sizeof(FixedRR);
-
-	if (ntohs(fixedrr->type) == 1) // IP address
-	{
-		int i;
-		for (i = 0; i < ntohs(fixedrr->len); i++)
-		{
-			rdata.append(to_string((int)reader[i]));
-			rdata.push_back('.');
-		}
-
-		rdata.pop_back(); // remove the last period
-	}
-	else
-	{
-		rdata = getName(reader, (u_char*) recv_buf, &end_idx);
-	}
-
-	PrintResponse(name, rdata, rDNS, fixedrr);
-
-	closesocket(sock);
-
-	delete[] pkt;
 
 	printf("Terminating main(), completion time %d ms\n", timeGetTime() - t);
 
@@ -320,6 +209,107 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	return name;
 }
 
+void resolveDNSbyName(string host, int arg_type) {
+	// print our primary/secondary DNS IPs
+	DNS mydns;
+	string dnsIP = "";
+	mydns.printDNSServer(dnsIP);
+
+	// set up the address of where we're sending data
+	struct sockaddr_in send_addr;
+	send_addr.sin_family = AF_INET;
+	send_addr.sin_addr.S_un.S_addr = inet_addr(dnsIP.c_str()); // 208.67.222.222
+
+	send_addr.sin_port = htons(53);
+
+	Question q;
+
+	//+1 byte for "size" for last substring, +1 for "0" meaning the end of question
+	size_t pkt_size = sizeof(FixedDNSheader) + host.size() + 2 + sizeof(QueryHeader);
+	char *pkt = new char[pkt_size];
+
+	//q.MakePacket(pkt, dHDR, qHDR);
+	q.CreatePacket(host, arg_type, pkt, pkt_size);
+
+	Winsock ws;
+
+	SOCKET sock = ws.OpenSocket(); // defined in winsock.h
+
+	int send_addrSize = sizeof(struct sockaddr_in);
+
+	int sentbytes = sendto(sock, pkt, pkt_size, 0, (struct sockaddr*) &send_addr, send_addrSize);
+
+	cout << "sentbytes=" << sentbytes << endl << endl;
+
+	char recv_buf[512];
+	//set timeout for receive
+	timeval* timeout = new timeval;
+	//set timeout for 10s
+	timeout->tv_sec = 10;
+	timeout->tv_usec = 0;
+	fd_set Sockets;
+	Sockets.fd_count = 1;
+	Sockets.fd_array[0] = sock;
+
+	int recvbytes = 0;
+	if (sentbytes > 0) {
+
+		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
+
+		if (select(0, NULL, &Sockets, NULL, timeout) > 0) {
+			cout << "No timeout!" << endl;
+			getchar();
+		}
+		else {
+			cout << "TIMEOUT" << endl;
+			getchar();
+		}
+	}
+
+	u_char *reader = (u_char*)
+		&recv_buf[pkt_size];
+
+	cout << "recv_bytes=" << recvbytes << endl;
+
+	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
+	FixedRR ansRR;
+
+	int end_idx = 0;
+
+	string name = getName(reader, (u_char*)recv_buf, &end_idx);
+	string rdata;
+
+	cout << endl;
+
+	reader = reader + end_idx;
+
+	FixedRR *fixedrr = (FixedRR *)reader;
+	reader = reader + sizeof(FixedRR);
+
+	// read the rdata into 
+	if (ntohs(fixedrr->type) == 1) // IP address
+	{
+		int i;
+		for (i = 0; i < ntohs(fixedrr->len); i++)
+		{
+			rdata.append(to_string((int)reader[i]));
+			rdata.push_back('.');
+		}
+
+		rdata.pop_back(); // remove the last period
+	}
+	else
+	{
+		rdata = getName(reader, (u_char*)recv_buf, &end_idx);
+	}
+
+	PrintResponse(name, rdata, rDNS, fixedrr);
+
+	closesocket(sock);
+
+	delete[] pkt;
+}
+
 // convert from <size><string><size><string>... (3www6google3com)
 string dnsResponseConvert(string name) {
 
@@ -345,12 +335,6 @@ string dnsResponseConvert(string name) {
 
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
-<<<<<<< HEAD
-	cout << "Answer RR: " << endl;
-	cout << "name: " << name << endl;
-	cout << "rdata: " << rdata << endl;
-=======
-
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
 
@@ -377,5 +361,4 @@ void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fix
 	else if (ntohs(fixedrr->type) == 1) {
 		cout << name << " is " << rdata << endl;
 	}
->>>>>>> dd0dd7a4dde6ec6c74c79153e4f8aa409430a1d7
 }
