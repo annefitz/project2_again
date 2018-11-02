@@ -71,6 +71,7 @@ bool Question::CreatePacket(string host, short arg_type, char * pkt, int pkt_siz
 	// if IP
 	else if (arg_type == 1) {
 		qHDR->type = htons(DNS_PTR);  // for reverse dns lookup
+		cout << "test";
 	}
 
 	return true;

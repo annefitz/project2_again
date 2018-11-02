@@ -18,7 +18,7 @@
 #include <iostream>
 
 string getName(u_char *parser, u_char *buf, int *idx);
-void resolveDNSbyName(string host, int arg_type);
+Stats resolveDNSbyName(string host, int arg_type);
 string dnsResponseConvert(string name);
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
 string makeBackwardsIP(char* arg);
@@ -31,6 +31,17 @@ public:
 	HANDLE eventQuit;
 	queue<string> inq;
 	int num_tasks;
+};
+
+// holds all of the shared statistics
+class Stats {
+public:
+	int num_tasks;
+	int numNoDNS;
+	int numNoAuth;
+	int numTimeout;
+	int delays; // adds all of the delays together. divides by num_tasks at the end
+	int retxAttempts; // ^ same but with resending attempts
 };
 
 // this function is where the thread starts
@@ -237,7 +248,10 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	return name;
 }
 
-void resolveDNSbyName(string host, int arg_type) {
+// main function to resolve dns names
+Stats resolveDNSbyName(string host, int arg_type) {
+
+	Stats stats;
 
 	// print our primary/secondary DNS IPs
 	DNS mydns;
@@ -271,6 +285,7 @@ void resolveDNSbyName(string host, int arg_type) {
 	cout << "sentbytes=" << sentbytes << endl << endl;
 
 	char recv_buf[512];
+
 	//set timeout for receive
 	timeval* timeout = new timeval;
 	//set timeout for 10s
@@ -295,8 +310,7 @@ void resolveDNSbyName(string host, int arg_type) {
 		}
 	}
 
-	u_char *reader = (u_char*)
-		&recv_buf[pkt_size];
+	u_char *reader = (u_char*) &recv_buf[pkt_size];
 
 	cout << "recv_bytes=" << recvbytes << endl;
 
@@ -387,7 +401,7 @@ void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fix
 	if (ntohs(fixedrr->type) == 5) {
 		cout << name << " is aliased to " << rdata << endl;
 	}
-	else if (ntohs(fixedrr->type) == 1) {
+	else {
 		cout << name << " is " << rdata << endl;
 	}
 }
