@@ -21,6 +21,7 @@ string getName(u_char *parser, u_char *buf, int *idx);
 void resolveDNSbyName(string host, int arg_type);
 string dnsResponseConvert(string name);
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
+string makeBackwardsIP(char* arg);
 
 // this class is passed to all threads, acts as shared memory
 class Parameters {
@@ -28,7 +29,7 @@ public:
 	HANDLE mutex;
 	HANDLE finished;
 	HANDLE eventQuit;
-	HANDLE inQ;
+	queue<string> inq;
 	int num_tasks;
 };
 
@@ -40,6 +41,12 @@ UINT thread(LPVOID pParam)
 	// wait for mutex, then print and sleep inside the critical section
 	WaitForSingleObject(p->mutex, INFINITE);					// lock mutex
 	printf("Thread %d started\n", GetCurrentThreadId());		// always print inside critical section to avoid screen garbage
+	cout << "INSIDE THREAD IP " << (char*)p->inq.front().c_str() << endl;
+	string host = makeBackwardsIP((char*) p->inq.front().c_str());
+	p->inq.pop();
+	cout << "HOST: " << host << endl;
+	resolveDNSbyName(host, 1);
+	
 	Sleep(1000);
 	ReleaseMutex(p->mutex);										// release critical section
 
@@ -61,7 +68,6 @@ int main(int argc, char* argv[])
 	DWORD t;
 	int arg_type;
 	int num_threads;
-	string backwardsIP;
 	string host = argv[1];
 
 	WSADATA wsaData;
@@ -79,23 +85,7 @@ int main(int argc, char* argv[])
 		if (isdigit(host[0])) {
 			std::printf("IP\n");
 			arg_type = 1;
-			if (inet_addr(argv[1]) == INADDR_NONE) {
-				std::printf("Invalid IP");
-				getchar();
-				return -1;
-			}
-			int position = host.find(".");
-			int i = 0; int size = 0;
-			while (position != string::npos) {
-				size = position - i;
-				backwardsIP.insert(0, host.substr(i, size));
-				backwardsIP.insert(0, ".");
-				i += size + 1;
-				position = host.find(".", i);
-			}
-			backwardsIP.insert(0, host.substr(i, host.length() - i));
-			cout << "FORWARD IP: " << host << " BACKWARDS IP: " << backwardsIP << endl;
-			host = backwardsIP + ".in-addr.arpa";
+			host = makeBackwardsIP(argv[1]);
 		}
 		else {
 			std::printf("HOSTNAME\n");
@@ -134,6 +124,9 @@ int main(int argc, char* argv[])
 		string url = "";
 		string port = "";
 		queue<string> inQ;
+		fin >> port;
+		//cout << port << endl;
+		fin >> url;
 		while (!fin.eof()) {
 			fin >> port;
 			//cout << port << endl;
@@ -155,7 +148,7 @@ int main(int argc, char* argv[])
 		// create a semaphore that counts the number of active threads
 		p.finished = CreateSemaphore(NULL, 0, num_threads, NULL);
 		p.eventQuit = CreateEvent(NULL, true, false, NULL);
-		p.inQ = &inQ;
+		p.inq = inQ;
 		p.num_tasks = size(inQ);
 		// get current time
 		t = timeGetTime();
@@ -178,6 +171,29 @@ int main(int argc, char* argv[])
 	WSACleanup();
 
 	return 0;
+}
+
+string makeBackwardsIP(char* arg) {
+	if (inet_addr(arg) == INADDR_NONE) {
+		std::printf("Invalid IP");
+		getchar();
+		return "";
+	}
+	string host = arg;
+	string backwardsIP;
+	int position = host.find(".");
+	int i = 0; int size = 0;
+	while (position != string::npos) {
+		size = position - i;
+		backwardsIP.insert(0, host.substr(i, size));
+		backwardsIP.insert(0, ".");
+		i += size + 1;
+		position = host.find(".", i);
+	}
+	backwardsIP.insert(0, host.substr(i, host.length() - i));
+	cout << "FORWARD IP: " << host << " BACKWARDS IP: " << backwardsIP << endl;
+	host = backwardsIP + ".in-addr.arpa";
+	return host;
 }
 
 string getName(u_char *parser, u_char *buf, int *idx)
