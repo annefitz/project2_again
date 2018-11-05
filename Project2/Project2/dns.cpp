@@ -29,18 +29,18 @@ void DNS::printDNSServer(string & dnsIP)
 		printf( "Call to GetNetworkParams failed. Return Value: %08x\n", dwRetVal );
 	}
 	else {
-		printf( "Host Name: %s\n", FixedInfo->HostName );
-		printf( "Domain Name: %s\n", FixedInfo->DomainName );
+		//printf( "Host Name: %s\n", FixedInfo->HostName );
+		//printf( "Domain Name: %s\n", FixedInfo->DomainName );
 
-		printf( "DNS Servers:\n" );
-		printf( "\t%s\n", FixedInfo->DnsServerList.IpAddress.String);
+		//printf( "DNS Servers:\n" );
+		//printf( "\t%s\n", FixedInfo->DnsServerList.IpAddress.String);
 		dnsIP =  FixedInfo->DnsServerList.IpAddress.String;
 
 		pIPAddr = FixedInfo->DnsServerList.Next;
-		while ( pIPAddr ) {
-			printf( "\t%s\n", pIPAddr ->IpAddress.String);
-			pIPAddr = pIPAddr ->Next;
-		}
+		//while ( pIPAddr ) {
+		//	printf( "\t%s\n", pIPAddr ->IpAddress.String);
+		//	pIPAddr = pIPAddr ->Next;
+		//}
 	}
 
 	GlobalFree (FixedInfo);

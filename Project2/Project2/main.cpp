@@ -8,6 +8,7 @@
 */
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS  // needed for "inet_add()" function call
+#define TIMEOUTUS 5000000
 
 #include "winsock.h"  // must include winsock2.h at the very top of the file before include others
 #include "headers.h"
@@ -17,57 +18,77 @@
 
 #include <iostream>
 
-string getName(u_char *parser, u_char *buf, int *idx);
-Stats resolveDNSbyName(string host, int arg_type);
-string dnsResponseConvert(string name);
-void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
-string makeBackwardsIP(char* arg);
-
 // this class is passed to all threads, acts as shared memory
 class Parameters {
 public:
-	HANDLE mutex;
+	_RTL_CRITICAL_SECTION mutex;
 	HANDLE finished;
 	HANDLE eventQuit;
 	queue<string> inq;
-	int num_tasks;
+	int mode, num_tasks;
+
+	_Interlocked_operand_ unsigned numSuccessful;
+	_Interlocked_operand_ unsigned numNoDNS;
+	_Interlocked_operand_ unsigned numNoAuth;
+	_Interlocked_operand_ unsigned numTimeout;
+	_Interlocked_operand_ unsigned numRetxAttempts; // ^ same but with resending attempts
+
+	Parameters() {
+		InitializeCriticalSection(&mutex);
+	}
 };
 
-// holds all of the shared statistics
-class Stats {
-public:
-	int num_tasks;
-	int numNoDNS;
-	int numNoAuth;
-	int numTimeout;
-	int delays; // adds all of the delays together. divides by num_tasks at the end
-	int retxAttempts; // ^ same but with resending attempts
-};
+string getName(u_char *parser, u_char *buf, int *idx);
+void resolveDNSbyName(string host, int arg_type, Parameters *p);
+string dnsResponseConvert(string name);
+void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
+string makeBackwardsIP(string arg);
 
 // this function is where the thread starts
 UINT thread(LPVOID pParam)
 {
 	Parameters *p = ((Parameters*)pParam);
 
-	// wait for mutex, then print and sleep inside the critical section
-	WaitForSingleObject(p->mutex, INFINITE);					// lock mutex
-	printf("Thread %d started\n", GetCurrentThreadId());		// always print inside critical section to avoid screen garbage
-	cout << "INSIDE THREAD IP " << (char*)p->inq.front().c_str() << endl;
-	string host = makeBackwardsIP((char*) p->inq.front().c_str());
-	p->inq.pop();
-	cout << "HOST: " << host << endl;
-	resolveDNSbyName(host, 1);
-	
+	string host;
+
+	while (true) {
+
+		// wait for mutex, then print and sleep inside the critical section
+		EnterCriticalSection(&(p->mutex));  // lock mutex
+
+			if (p->num_tasks <= 0 || p->inq.empty()) {
+				LeaveCriticalSection(&(p->mutex));
+				break;
+			}
+			
+			host = p->inq.front();
+			p->inq.pop();
+			p->num_tasks--;
+			printf("Thread %d: num_tasks_left = %d\n", GetCurrentThreadId(), p->num_tasks);
+			//cout << "Q SIZE: " << p->inq.size() << endl;
+		LeaveCriticalSection(&(p->mutex));
+
+		if (p->mode == 2)
+			host = makeBackwardsIP(host);
+
+		if (host == "" || host == "\0")
+			continue; // invalid IP
+
+		resolveDNSbyName(host, 1, p);
+	}
 	Sleep(1000);
-	ReleaseMutex(p->mutex);										// release critical section
 
-	//resolveDNSbyName(host, arg_type);
+	printf("Thread %d done.\n", GetCurrentThreadId());
 
-	// signal that this thread has exited
-	ReleaseSemaphore(p->finished, 1, NULL);
+	// signal that this thread is exiting
+	EnterCriticalSection(&(p->mutex));
+		Sleep(10); // helps the main loop keep up with the threads exiting
+		ReleaseSemaphore(p->finished, 1, NULL); // signal that the thread is finished
+	LeaveCriticalSection(&(p->mutex));
 
 	return 0;
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -77,9 +98,10 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	DWORD t;
-	int arg_type;
-	int num_threads;
+	int arg_type, num_threads, total_tasks;
 	string host = argv[1];
+	Parameters p;
+	queue<string> inQ;
 
 	WSADATA wsaData;
 
@@ -92,37 +114,48 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	// INTERACTIVE MODE --------------------------------------------------
 	if (host.find(".") != string::npos) {
+
+		cout << "Starting interactive mode\n";
+		p.mode = 1;
+
 		if (isdigit(host[0])) {
-			std::printf("IP\n");
 			arg_type = 1;
 			host = makeBackwardsIP(argv[1]);
 		}
 		else {
-			std::printf("HOSTNAME\n");
 			arg_type = 2;
 		}
-		cout << "argc: " << argc << ", argv: " << host << endl;
+
+		cout << "HOST: " << host << endl;
+
+		inQ.push(host);
+
 		// thread handles are stored here; they can be used to check status of threads, or kill them
 		HANDLE *ptrs = new HANDLE[2];
-		Parameters p;
-
-		// create a mutex for accessing critical sections (including printf)
-		p.mutex = CreateMutex(NULL, 0, NULL);
 
 		// create a semaphore that counts the number of active threads
 		p.finished = CreateSemaphore(NULL, 0, 2, NULL);
 		p.eventQuit = CreateEvent(NULL, true, false, NULL);
+		p.num_tasks = size(inQ);
+		p.inq = inQ;
 
 		// get current time
 		t = timeGetTime();
 
-		resolveDNSbyName(host, arg_type);
+		HANDLE t1 = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
+
+		WaitForSingleObject(p.finished, INFINITE);
+
 	}
+
+	// BATCH MODE --------------------------------------------------------
 	else {
-		string filename = "dns-in.txt";
+		string filename = "dns-in-test.txt";
 		num_threads = stoi(argv[1]);
-		cout << "BATCH LOOKUP, num threads: " << num_threads << endl;
+
+		// open batch input file
 		ifstream fin;
 		fin.open(filename);
 		if (fin.fail()) {
@@ -132,11 +165,11 @@ int main(int argc, char* argv[])
 		else {
 			cout << "Opened " << filename << endl;
 		}
+
+		// read each IP into a queue
 		string url = "";
 		string port = "";
-		queue<string> inQ;
 		fin >> port;
-		//cout << port << endl;
 		fin >> url;
 		while (!fin.eof()) {
 			fin >> port;
@@ -146,21 +179,29 @@ int main(int argc, char* argv[])
 			inQ.push(url);
 		}
 		fin.close();
-		cout << "Size of queue: " << inQ.size() << endl;
-		getchar();
 		
+		cout << "Started batch mode with " << num_threads << " threads...\n";
+		cout << "Reading input file... found " << size(inQ) << " entries...\n";
+		p.mode = 2;
+
+		total_tasks = size(inQ);
+
 		// thread handles are stored here; they can be used to check status of threads, or kill them
 		HANDLE *ptrs = new HANDLE[num_threads];
-		Parameters p;
-
-		// create a mutex for accessing critical sections (including printf)
-		p.mutex = CreateMutex(NULL, 0, NULL);
 
 		// create a semaphore that counts the number of active threads
-		p.finished = CreateSemaphore(NULL, 0, num_threads, NULL);
-		p.eventQuit = CreateEvent(NULL, true, false, NULL);
+		p.finished = CreateSemaphoreA(NULL, 0, 1, NULL);
+		p.eventQuit = CreateEventA(NULL, true, false, NULL);
+
+		// initialize necessary shared parameter values
 		p.inq = inQ;
 		p.num_tasks = size(inQ);
+		p.numSuccessful = 0;
+		p.numNoAuth = 0;
+		p.numNoDNS = 0;
+		p.numTimeout = 0;
+		p.numRetxAttempts = 0;
+
 		// get current time
 		t = timeGetTime();
 
@@ -168,11 +209,26 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < num_threads; i++) {
 			ptrs[i] = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)thread, &p, 0, NULL);
 		}
+
 		// make sure this thread hangs here until the other two quit; otherwise, the program will terminate prematurely
 		for (int i = 0; i < num_threads; i++) {
 			WaitForSingleObject(p.finished, INFINITE);
 		}
 	}
+
+	if (p.mode == 2) {
+
+		printf("Completed %d queries\n", total_tasks);
+		printf("\t Successful: %.0f\n", p.numSuccessful);
+		printf("\t No DNS record: %.0f\n", p.numNoDNS / total_tasks);
+		printf("\t Local DNS timeout: %.0f\n", p.numTimeout / total_tasks);
+		printf("\t Average delay: %.0f\n", p.numTimeout / total_tasks);
+		printf("\t Average retx attempts: %.2f\n", p.numRetxAttempts / total_tasks);
+
+		printf("Writing output file...");
+	}
+
+
 
 	printf("-----------------\n");
 	printf("Terminating main(), completion time %d ms\n", timeGetTime() - t);
@@ -184,10 +240,9 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-string makeBackwardsIP(char* arg) {
-	if (inet_addr(arg) == INADDR_NONE) {
-		std::printf("Invalid IP");
-		getchar();
+string makeBackwardsIP(string arg) {
+	if (inet_addr(arg.c_str()) == INADDR_NONE) {
+		printf("Invalid IP\n");
 		return "";
 	}
 	string host = arg;
@@ -202,7 +257,6 @@ string makeBackwardsIP(char* arg) {
 		position = host.find(".", i);
 	}
 	backwardsIP.insert(0, host.substr(i, host.length() - i));
-	cout << "FORWARD IP: " << host << " BACKWARDS IP: " << backwardsIP << endl;
 	host = backwardsIP + ".in-addr.arpa";
 	return host;
 }
@@ -248,10 +302,14 @@ string getName(u_char *parser, u_char *buf, int *idx)
 	return name;
 }
 
-// main function to resolve dns names
-Stats resolveDNSbyName(string host, int arg_type) {
 
-	Stats stats;
+// main function to resolve dns names
+//   returns:
+//           0 - Successfully found dns
+//			 1 - No DNS found
+//			 2 - Authoratative DNS not found
+//			 3 - 
+void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 
 	// print our primary/secondary DNS IPs
 	DNS mydns;
@@ -282,37 +340,69 @@ Stats resolveDNSbyName(string host, int arg_type) {
 
 	int sentbytes = sendto(sock, pkt, pkt_size, 0, (struct sockaddr*) &send_addr, send_addrSize);
 
-	cout << "sentbytes=" << sentbytes << endl << endl;
-
 	char recv_buf[512];
 
+	FD_SET Reader;
+	FD_ZERO(&Reader);
+	FD_SET(sock, &Reader);
+
 	//set timeout for receive
-	timeval* timeout = new timeval;
-	//set timeout for 10s
-	timeout->tv_sec = 10;
-	timeout->tv_usec = 0;
-	fd_set Sockets;
-	Sockets.fd_count = 1;
-	Sockets.fd_array[0] = sock;
+	struct timeval timeout;
+	timeout.tv_sec = 5; //set timeout for 10s
+	timeout.tv_usec = 0;
 
 	int recvbytes = 0;
 	if (sentbytes > 0) {
+		int count = 0; int sel;
+		while (count < 3) {
+			sel = select(sock, &Reader, NULL, NULL, &timeout);
+			if (sel > 0) {
+			
+				recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
+				if (recvbytes >= 0) {
+					break;
+				}
+				else {
+					cout << "Error reading..\n";
+					closesocket(sock);
+					delete[] pkt;
+					return;
+				}
+			}
+			else if (sel == 0) {
+				cout << "Server timeout, retrying..." << endl;
+			}
+			else {
+				cout << "Error with select function, retrying..." << endl;
+			}
 
-		recvbytes = recvfrom(sock, recv_buf, 512, 0, (struct sockaddr *) &send_addr, &send_addrSize);
-
-		if (select(0, NULL, &Sockets, NULL, timeout) > 0) {
-			cout << "No timeout!" << endl;
-			getchar();
+			count++;
+			InterlockedIncrement(&(p->numRetxAttempts));
 		}
-		else {
-			cout << "TIMEOUT" << endl;
-			getchar();
+		closesocket(sock);
+		if (count == 3) {
+			cout << "Too many timeouts. Abandoning IP.." << endl;
+			InterlockedIncrement(&(p->numTimeout));
+			delete[] pkt;
+			return;
 		}
 	}
+	else
+	{
+		cout << "No bytes were sent... \n";
+		closesocket(sock);
+		delete[] pkt;
+		return;
+	}
 
+	if (sentbytes == recvbytes) {
+		cout << "No answers returned...\n";
+		closesocket(sock);
+		delete[] pkt;
+		return;
+	}
+	//cout << "Thread " << GetCurrentThreadId() << ": recv bytes -> " << recvbytes << " | sentbytes: " << sentbytes << endl;
 	u_char *reader = (u_char*) &recv_buf[pkt_size];
-
-	cout << "recv_bytes=" << recvbytes << endl;
 
 	FixedDNSheader * rDNS = (FixedDNSheader *)recv_buf;
 	FixedRR ansRR;
@@ -321,15 +411,14 @@ Stats resolveDNSbyName(string host, int arg_type) {
 
 	string name = getName(reader, (u_char*)recv_buf, &end_idx);
 	string rdata;
-
-	cout << endl;
-
+	//printf("Thread %d: name is -> %s\n", GetCurrentThreadId(), name);
+	//cout << "Thread " << GetCurrentThreadId() << ": name is -> " << name << endl;
 	reader = reader + end_idx;
 
 	FixedRR *fixedrr = (FixedRR *)reader;
 	reader = reader + sizeof(FixedRR);
 
-	// read the rdata into 
+	// read the rdata into
 	if (ntohs(fixedrr->type) == 1) // IP address
 	{
 		int i;
@@ -346,13 +435,36 @@ Stats resolveDNSbyName(string host, int arg_type) {
 		rdata = getName(reader, (u_char*)recv_buf, &end_idx);
 	}
 
-	PrintResponse(name, rdata, rDNS, fixedrr);
+	unsigned short rcode = 0x0F;
+	rcode = rcode & ntohs(rDNS->flags);
 
-	closesocket(sock);
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		InterlockedIncrement(&(p->numNoDNS));
+		delete[] pkt;
+		return;
+	}
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		InterlockedIncrement(&(p->numNoAuth));
+		delete[] pkt;
+		return;
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		delete[] pkt;
+		return;
+		return;
+	}
+
+	if (p->mode == 1)
+		PrintResponse(name, rdata, rDNS, fixedrr);
 
 	delete[] pkt;
 
-	return stats;
+	InterlockedAdd(&(p->numSuccessful), 1);
+
+	return;
 }
 
 // convert from <size><string><size><string>... (3www6google3com)
@@ -380,24 +492,6 @@ string dnsResponseConvert(string name) {
 
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
-	unsigned short rcode = 0x0F;
-	rcode = rcode & ntohs(rDNS->flags);
-
-	if (rcode == 3) {
-		cout << "No DNS entry" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode == 2) {
-		cout << "Authoritative DNS server not found" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode > 0) {
-		cout << "Error type: " << rcode << endl;
-		getchar();
-		return;
-	}
 	cout << endl << endl << "Answer:" << endl;
 
 	if (ntohs(fixedrr->type) == 5) {
@@ -406,4 +500,11 @@ void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fix
 	else {
 		cout << name << " is " << rdata << endl;
 	}
+}
+
+void PrintStats(Parameters *p)
+{
+	cout << endl << endl << "Statistics:" << endl;
+
+
 }
