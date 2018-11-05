@@ -113,6 +113,10 @@ int main(int argc, char* argv[])
 
 	WSADATA wsaData;
 
+	std::ofstream out("out.txt");
+	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+	std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
+
 	// Initialize WinSock in your project only once!
 	WORD wVersionRequested = MAKEWORD(2, 2);
 	if (WSAStartup(wVersionRequested, &wsaData) != 0) {
@@ -228,12 +232,22 @@ int main(int argc, char* argv[])
 	if (p.mode == 2) {
 
 		printf("Completed %d queries\n", total_tasks);
+<<<<<<< HEAD
 		cout << "	Successful: " << (p.numSuccessful / total_tasks) * 100 << "%" << endl;
 		cout << "	No DNS record: " << (p.numNoDNS / total_tasks) * 100 << "%" << endl;
 		cout << "	Local DNS timeout: " << (p.numTimeout / total_tasks) * 100 << "%" << endl;
 		cout << "	Average delay: " << (p.totalDelay / total_tasks) << " ms" << endl;
 		cout << "	Average retx attempts: " << (p.numRetxAttempts / total_tasks) << endl;
 		cout << "Writing output file...\n";
+=======
+		printf("\t Successful: %.0d\n", p.numSuccessful);
+		printf("\t No DNS record: %.0d\n", p.numNoDNS / total_tasks);
+		printf("\t Local DNS timeout: %.0d\n", p.numTimeout / total_tasks);
+		printf("\t Average delay: %.0d\n", p.numTimeout / total_tasks);
+		printf("\t Average retx attempts: %.2d\n", p.numRetxAttempts / total_tasks);
+
+		printf("Writing output file...");
+>>>>>>> 9036bd5f0bd309a6af696600cbc7cf6e6c8563b1
 	}
 
 
@@ -371,6 +385,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 					break;
 				}
 				else {
+					cout << "Thread " << GetCurrentThreadId() << "\n";
 					cout << "Error reading..\n";
 					closesocket(sock);
 					delete[] pkt;
@@ -378,9 +393,11 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 				}
 			}
 			else if (sel == 0) {
+				cout << "Thread " << GetCurrentThreadId() << "\n";
 				cout << "Server timeout, retrying..." << endl;
 			}
 			else {
+				cout << "Thread " << GetCurrentThreadId() << "\n";
 				cout << "Error with select function, retrying..." << endl;
 			}
 
@@ -391,6 +408,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 		}
 		closesocket(sock);
 		if (count == 3) {
+			cout << "Thread " << GetCurrentThreadId() << "\n";
 			cout << "Too many timeouts. Abandoning IP.." << endl;
 			EnterCriticalSection(&(p->count_mutex));
 				p->numTimeout++;
@@ -401,6 +419,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 	}
 	else
 	{
+		cout << "Thread " << GetCurrentThreadId() << "\n";
 		cout << "No bytes were sent... \n";
 		closesocket(sock);
 		delete[] pkt;
@@ -408,6 +427,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 	}
 
 	if (sentbytes == recvbytes) {
+		cout << "Thread " << GetCurrentThreadId() << "\n";
 		cout << "No answers returned...\n";
 		closesocket(sock);
 		delete[] pkt;
@@ -451,6 +471,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 	rcode = rcode & ntohs(rDNS->flags);
 
 	if (rcode == 3) {
+		cout << "Thread " << GetCurrentThreadId();
 		cout << "No DNS entry" << endl;
 		EnterCriticalSection(&(p->count_mutex));
 			p->numNoDNS++;
@@ -459,6 +480,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 		return p;
 	}
 	else if (rcode == 2) {
+		cout << "Thread " << GetCurrentThreadId();
 		cout << "Authoritative DNS server not found" << endl;
 		EnterCriticalSection(&(p->count_mutex));
 			p->numNoAuth++;
@@ -467,9 +489,14 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 		return p;
 	}
 	else if (rcode > 0) {
+		cout << "Thread " << GetCurrentThreadId();
 		cout << "Error type: " << rcode << endl;
 		delete[] pkt;
+<<<<<<< HEAD
 		return p;
+=======
+		return;
+>>>>>>> 9036bd5f0bd309a6af696600cbc7cf6e6c8563b1
 	}
 
 	if (p->mode == 1)
@@ -509,18 +536,22 @@ string dnsResponseConvert(string name) {
 
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr)
 {
+	cout << "Thread " << GetCurrentThreadId();
 	cout << endl << endl << "Answer:" << endl;
 
 	if (ntohs(fixedrr->type) == 5) {
+		cout << "Thread " << GetCurrentThreadId();
 		cout << name << " is aliased to " << rdata << endl;
 	}
 	else {
+		cout << "Thread " << GetCurrentThreadId();
 		cout << name << " is " << rdata << endl;
 	}
 }
 
 void PrintStats(Parameters *p)
 {
+	cout << "Thread " << GetCurrentThreadId();
 	cout << endl << endl << "Statistics:" << endl;
 
 
