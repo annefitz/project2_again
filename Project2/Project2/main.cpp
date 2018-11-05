@@ -379,12 +379,19 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 			count++;
 			InterlockedIncrement(&(p->numRetxAttempts));
 		}
+<<<<<<< HEAD
 		closesocket(sock);
 		if (count == 3) {
 			cout << "Too many timeouts. Abandoning IP.." << endl;
 			InterlockedIncrement(&(p->numTimeout));
 			delete[] pkt;
 			return;
+=======
+		else {
+			cout << "TIMEOUT" << endl;
+			stats.numTimeout++;
+			getchar();
+>>>>>>> ae5597435674977bf20276dd4a6cf9645ff8ef7e
 		}
 	}
 	else
@@ -434,6 +441,26 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 	{
 		rdata = getName(reader, (u_char*)recv_buf, &end_idx);
 	}
+	unsigned short rcode = 0x0F;
+	rcode = rcode & ntohs(rDNS->flags);
+
+	if (rcode == 3) {
+		cout << "No DNS entry" << endl;
+		stats.numNoDNS++;
+		getchar();
+		return;
+	}
+	else if (rcode == 2) {
+		cout << "Authoritative DNS server not found" << endl;
+		stats.numNoAuth++;
+		getchar();
+		return;
+	}
+	else if (rcode > 0) {
+		cout << "Error type: " << rcode << endl;
+		getchar();
+		return;
+	}
 
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
@@ -462,9 +489,16 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 
 	delete[] pkt;
 
+<<<<<<< HEAD
 	InterlockedAdd(&(p->numSuccessful), 1);
 
 	return;
+=======
+	stats.num_tasks--;
+	
+
+	return stats;
+>>>>>>> ae5597435674977bf20276dd4a6cf9645ff8ef7e
 }
 
 // convert from <size><string><size><string>... (3www6google3com)
