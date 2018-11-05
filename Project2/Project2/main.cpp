@@ -22,24 +22,27 @@
 class Parameters {
 public:
 	_RTL_CRITICAL_SECTION mutex;
+	_RTL_CRITICAL_SECTION count_mutex;
 	HANDLE finished;
 	HANDLE eventQuit;
 	queue<string> inq;
 	int mode, num_tasks;
 
-	_Interlocked_operand_ unsigned numSuccessful;
-	_Interlocked_operand_ unsigned numNoDNS;
-	_Interlocked_operand_ unsigned numNoAuth;
-	_Interlocked_operand_ unsigned numTimeout;
-	_Interlocked_operand_ unsigned numRetxAttempts; // ^ same but with resending attempts
+	double numSuccessful;
+	double numNoDNS;
+	double numNoAuth;
+	double numTimeout;
+	double numRetxAttempts; // ^ same but with resending attempts
+	double totalDelay;
 
 	Parameters() {
 		InitializeCriticalSection(&mutex);
+		InitializeCriticalSection(&count_mutex);
 	}
 };
 
 string getName(u_char *parser, u_char *buf, int *idx);
-void resolveDNSbyName(string host, int arg_type, Parameters *p);
+Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p);
 string dnsResponseConvert(string name);
 void PrintResponse(string name, string rdata, FixedDNSheader *rDNS, FixedRR *fixedrr);
 string makeBackwardsIP(string arg);
@@ -48,7 +51,7 @@ string makeBackwardsIP(string arg);
 UINT thread(LPVOID pParam)
 {
 	Parameters *p = ((Parameters*)pParam);
-
+	DWORD start;
 	string host;
 
 	while (true) {
@@ -74,7 +77,12 @@ UINT thread(LPVOID pParam)
 		if (host == "" || host == "\0")
 			continue; // invalid IP
 
-		resolveDNSbyName(host, 1, p);
+		start = timeGetTime();
+		p = resolveDNSbyName(host, 1, p);
+
+		EnterCriticalSection(&(p->count_mutex));
+			p->totalDelay += (timeGetTime() - start);
+		LeaveCriticalSection(&(p->count_mutex));
 	}
 	Sleep(1000);
 
@@ -152,7 +160,7 @@ int main(int argc, char* argv[])
 
 	// BATCH MODE --------------------------------------------------------
 	else {
-		string filename = "dns-in-test.txt";
+		string filename = "dns-in.txt";
 		num_threads = stoi(argv[1]);
 
 		// open batch input file
@@ -201,6 +209,7 @@ int main(int argc, char* argv[])
 		p.numNoDNS = 0;
 		p.numTimeout = 0;
 		p.numRetxAttempts = 0;
+		p.totalDelay = 0;
 
 		// get current time
 		t = timeGetTime();
@@ -219,13 +228,12 @@ int main(int argc, char* argv[])
 	if (p.mode == 2) {
 
 		printf("Completed %d queries\n", total_tasks);
-		printf("\t Successful: %.0f\n", p.numSuccessful);
-		printf("\t No DNS record: %.0f\n", p.numNoDNS / total_tasks);
-		printf("\t Local DNS timeout: %.0f\n", p.numTimeout / total_tasks);
-		printf("\t Average delay: %.0f\n", p.numTimeout / total_tasks);
-		printf("\t Average retx attempts: %.2f\n", p.numRetxAttempts / total_tasks);
-
-		printf("Writing output file...");
+		cout << "	Successful: " << (p.numSuccessful / total_tasks) * 100 << "%" << endl;
+		cout << "	No DNS record: " << (p.numNoDNS / total_tasks) * 100 << "%" << endl;
+		cout << "	Local DNS timeout: " << (p.numTimeout / total_tasks) * 100 << "%" << endl;
+		cout << "	Average delay: " << (p.totalDelay / total_tasks) << " ms" << endl;
+		cout << "	Average retx attempts: " << (p.numRetxAttempts / total_tasks) << endl;
+		cout << "Writing output file...\n";
 	}
 
 
@@ -309,7 +317,7 @@ string getName(u_char *parser, u_char *buf, int *idx)
 //			 1 - No DNS found
 //			 2 - Authoratative DNS not found
 //			 3 - 
-void resolveDNSbyName(string host, int arg_type, Parameters *p) {
+Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 
 	// print our primary/secondary DNS IPs
 	DNS mydns;
@@ -366,7 +374,7 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 					cout << "Error reading..\n";
 					closesocket(sock);
 					delete[] pkt;
-					return;
+					return p;
 				}
 			}
 			else if (sel == 0) {
@@ -377,14 +385,18 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 			}
 
 			count++;
-			InterlockedIncrement(&(p->numRetxAttempts));
+			EnterCriticalSection(&(p->count_mutex));
+				p->numRetxAttempts++;
+			LeaveCriticalSection(&(p->count_mutex));
 		}
 		closesocket(sock);
 		if (count == 3) {
 			cout << "Too many timeouts. Abandoning IP.." << endl;
-			InterlockedIncrement(&(p->numTimeout));
+			EnterCriticalSection(&(p->count_mutex));
+				p->numTimeout++;
+			LeaveCriticalSection(&(p->count_mutex));
 			delete[] pkt;
-			return;
+			return p;
 		}
 	}
 	else
@@ -392,14 +404,14 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 		cout << "No bytes were sent... \n";
 		closesocket(sock);
 		delete[] pkt;
-		return;
+		return p;
 	}
 
 	if (sentbytes == recvbytes) {
 		cout << "No answers returned...\n";
 		closesocket(sock);
 		delete[] pkt;
-		return;
+		return p;
 	}
 	//cout << "Thread " << GetCurrentThreadId() << ": recv bytes -> " << recvbytes << " | sentbytes: " << sentbytes << endl;
 	u_char *reader = (u_char*) &recv_buf[pkt_size];
@@ -434,45 +446,30 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 	{
 		rdata = getName(reader, (u_char*)recv_buf, &end_idx);
 	}
-	unsigned short rcode = 0x0F;
-	rcode = rcode & ntohs(rDNS->flags);
-
-	if (rcode == 3) {
-		cout << "No DNS entry" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode == 2) {
-		cout << "Authoritative DNS server not found" << endl;
-		getchar();
-		return;
-	}
-	else if (rcode > 0) {
-		cout << "Error type: " << rcode << endl;
-		getchar();
-		return;
-	}
 
 	unsigned short rcode = 0x0F;
 	rcode = rcode & ntohs(rDNS->flags);
 
 	if (rcode == 3) {
 		cout << "No DNS entry" << endl;
-		InterlockedIncrement(&(p->numNoDNS));
+		EnterCriticalSection(&(p->count_mutex));
+			p->numNoDNS++;
+		LeaveCriticalSection(&(p->count_mutex));
 		delete[] pkt;
-		return;
+		return p;
 	}
 	else if (rcode == 2) {
 		cout << "Authoritative DNS server not found" << endl;
-		InterlockedIncrement(&(p->numNoAuth));
+		EnterCriticalSection(&(p->count_mutex));
+			p->numNoAuth++;
+		LeaveCriticalSection(&(p->count_mutex));
 		delete[] pkt;
-		return;
+		return p;
 	}
 	else if (rcode > 0) {
 		cout << "Error type: " << rcode << endl;
 		delete[] pkt;
-		return;
-		return;
+		return p;
 	}
 
 	if (p->mode == 1)
@@ -480,9 +477,11 @@ void resolveDNSbyName(string host, int arg_type, Parameters *p) {
 
 	delete[] pkt;
 
-	InterlockedIncrement(&(p->numSuccessful));
+	EnterCriticalSection(&(p->count_mutex));
+		p->numSuccessful++;
+	LeaveCriticalSection(&(p->count_mutex));
 
-	return;
+	return p;
 }
 
 // convert from <size><string><size><string>... (3www6google3com)
