@@ -67,7 +67,7 @@ UINT thread(LPVOID pParam)
 			host = p->inq.front();
 			p->inq.pop();
 			p->num_tasks--;
-			printf("Thread %d: num_tasks_left = %d\n", GetCurrentThreadId(), p->num_tasks);
+			cout << "Thread " << GetCurrentThreadId() << ": num_tasks_left = " << p->num_tasks << endl;
 			//cout << "Q SIZE: " << p->inq.size() << endl;
 		LeaveCriticalSection(&(p->mutex));
 
@@ -86,7 +86,7 @@ UINT thread(LPVOID pParam)
 	}
 	Sleep(1000);
 
-	printf("Thread %d done.\n", GetCurrentThreadId());
+	cout << "Thread " << GetCurrentThreadId() << "done.\n";
 
 	// signal that this thread is exiting
 	EnterCriticalSection(&(p->mutex));
@@ -112,10 +112,6 @@ int main(int argc, char* argv[])
 	queue<string> inQ;
 
 	WSADATA wsaData;
-
-	std::ofstream out("out.txt");
-	std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
-	std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
 
 	// Initialize WinSock in your project only once!
 	WORD wVersionRequested = MAKEWORD(2, 2);
@@ -178,6 +174,10 @@ int main(int argc, char* argv[])
 			cout << "Opened " << filename << endl;
 		}
 
+		std::ofstream out("out.txt");
+		std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+		std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
+
 		// read each IP into a queue
 		string url = "";
 		string port = "";
@@ -192,8 +192,8 @@ int main(int argc, char* argv[])
 		}
 		fin.close();
 		
-		cout << "Started batch mode with " << num_threads << " threads...\n";
-		cout << "Reading input file... found " << size(inQ) << " entries...\n";
+		printf("Started batch mode with %d threads...\n", num_threads);
+		printf("Reading input file... found %d entries...\n", size(inQ));
 		p.mode = 2;
 
 		total_tasks = size(inQ);
@@ -230,26 +230,22 @@ int main(int argc, char* argv[])
 	}
 
 	if (p.mode == 2) {
-
-		printf("Completed %d queries\n", total_tasks);
-<<<<<<< HEAD
+		cout << "Completed " << total_tasks << " queries\n";
 		cout << "	Successful: " << (p.numSuccessful / total_tasks) * 100 << "%" << endl;
 		cout << "	No DNS record: " << (p.numNoDNS / total_tasks) * 100 << "%" << endl;
 		cout << "	Local DNS timeout: " << (p.numTimeout / total_tasks) * 100 << "%" << endl;
 		cout << "	Average delay: " << (p.totalDelay / total_tasks) << " ms" << endl;
 		cout << "	Average retx attempts: " << (p.numRetxAttempts / total_tasks) << endl;
-		cout << "Writing output file...\n";
-=======
-		printf("\t Successful: %.0d\n", p.numSuccessful);
-		printf("\t No DNS record: %.0d\n", p.numNoDNS / total_tasks);
-		printf("\t Local DNS timeout: %.0d\n", p.numTimeout / total_tasks);
-		printf("\t Average delay: %.0d\n", p.numTimeout / total_tasks);
-		printf("\t Average retx attempts: %.2d\n", p.numRetxAttempts / total_tasks);
+		cout << "Writing output file... finished\n";
 
-		printf("Writing output file...");
->>>>>>> 9036bd5f0bd309a6af696600cbc7cf6e6c8563b1
+		printf("Completed %d queries\n", total_tasks);
+		printf("\t Successful: %.0f%%\n", (p.numSuccessful / total_tasks) * 100);
+		printf("\t No DNS record: %.0f%%\n", (p.numNoDNS / total_tasks) * 100);
+		printf("\t Local DNS timeout: %.0f%%\n", (p.numTimeout / total_tasks) * 100);
+		printf("\t Average delay: %.0f ms\n", (p.totalDelay / total_tasks));
+		printf("\t Average retx attempts: %.2f\n", (p.numRetxAttempts / total_tasks));
+		printf("Writing output file... finished\n");
 	}
-
 
 
 	printf("-----------------\n");
@@ -492,11 +488,7 @@ Parameters* resolveDNSbyName(string host, int arg_type, Parameters *p) {
 		cout << "Thread " << GetCurrentThreadId();
 		cout << "Error type: " << rcode << endl;
 		delete[] pkt;
-<<<<<<< HEAD
 		return p;
-=======
-		return;
->>>>>>> 9036bd5f0bd309a6af696600cbc7cf6e6c8563b1
 	}
 
 	if (p->mode == 1)

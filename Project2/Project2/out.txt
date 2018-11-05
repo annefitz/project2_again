@@ -1,21 +1,185 @@
-Opened dns-in-test.txt
-Started batch mode with 5 threads...
-Reading input file... found 25 entries...
-Thread 3808
+Thread 10680: num_tasks_left = 411
+Thread 17268: num_tasks_left = 410
+Thread 10424: num_tasks_left = 409
+Thread 17268: num_tasks_left = 408
+Thread 10680No DNS entry
+Thread 10680: num_tasks_left = 407
+Thread 10424No DNS entry
+Thread 10424: num_tasks_left = 406
+Thread 17268: num_tasks_left = 405
+Thread 10680: num_tasks_left = 404
+Thread 10424: num_tasks_left = 403
+Thread 17268: num_tasks_left = 402
+Thread 10680: num_tasks_left = 401
+Thread 10424: num_tasks_left = 400
+Thread 17268: num_tasks_left = 399
+Thread 10680: num_tasks_left = 398
+Thread 10424: num_tasks_left = 397
+Thread 17268: num_tasks_left = 396
+Thread 10680: num_tasks_left = 395
+Thread 10424: num_tasks_left = 394
+Thread 17268: num_tasks_left = 393
+Thread 10680: num_tasks_left = 392
+Thread 10424: num_tasks_left = 391
+Thread 17268No DNS entry
+Thread 17268: num_tasks_left = 390
+Thread 10424: num_tasks_left = 389
+Thread 17268: num_tasks_left = 388
+Thread 10680: num_tasks_left = 387
+Thread 10424: num_tasks_left = 386
+Thread 17268No DNS entry
+Thread 17268: num_tasks_left = 385
+Thread 10680: num_tasks_left = 384
+Thread 10424: num_tasks_left = 383
+Thread 17268: num_tasks_left = 382
+Thread 10424No DNS entry
+Thread 10424: num_tasks_left = 381
+Thread 10680: num_tasks_left = 380
+Thread 17268No DNS entry
+Thread 17268: num_tasks_left = 379
+Thread 10424No DNS entry
+Thread 10424: num_tasks_left = 378
+Thread 10680No DNS entry
+Thread 10680: num_tasks_left = 377
+Thread 17268: num_tasks_left = 376
+Thread 10424: num_tasks_left = 375
+Thread 10680: num_tasks_left = 374
+Thread 17268: num_tasks_left = 373
+Thread 10424No DNS entry
+Thread 10424: num_tasks_left = 372
+Thread 10680: num_tasks_left = 371
+Thread 17268: num_tasks_left = 370
+Thread 10424: num_tasks_left = 369
+Thread 10680: num_tasks_left = 368
+Thread 17268: num_tasks_left = 367
+Thread 10424: num_tasks_left = 366
+Thread 10680: num_tasks_left = 365
+Thread 17268: num_tasks_left = 364
+Thread 10424: num_tasks_left = 363
+Thread 10680: num_tasks_left = 362
+Thread 17268: num_tasks_left = 361
+Thread 10424: num_tasks_left = 360
+Thread 10680: num_tasks_left = 359
+Thread 17268: num_tasks_left = 358
+Thread 10424: num_tasks_left = 357
+Thread 10680: num_tasks_left = 356
+Thread 17268: num_tasks_left = 355
+Thread 10424: num_tasks_left = 354
+Thread 10680: num_tasks_left = 353
+Thread 17268: num_tasks_left = 352
+Thread 10424: num_tasks_left = 351
+Thread 10680: num_tasks_left = 350
+Thread 17268: num_tasks_left = 349
+Thread 10424: num_tasks_left = 348
+Thread 10680: num_tasks_left = 347
+Thread 17268: num_tasks_left = 346
+Thread 10424: num_tasks_left = 345
+Thread 10680: num_tasks_left = 344
+Thread 17268: num_tasks_left = 343
+Thread 10424: num_tasks_left = 342
+Thread 10680: num_tasks_left = 341
+Thread 17268: num_tasks_left = 340
+Thread 10424: num_tasks_left = 339
+Thread 10680: num_tasks_left = 338
+Thread 17268: num_tasks_left = 337
+Thread 10424: num_tasks_left = 336
+Thread 10680: num_tasks_left = 335
+Thread 17268: num_tasks_left = 334
+Thread 10424: num_tasks_left = 333
+Thread 10680: num_tasks_left = 332
+Thread 17268: num_tasks_left = 331
+Thread 10424: num_tasks_left = 330
+Thread 10680: num_tasks_left = 329
+Thread 17268: num_tasks_left = 328
+Thread 10424: num_tasks_left = 327
+Thread 10680: num_tasks_left = 326
+Thread 17268: num_tasks_left = 325
+Thread 10424: num_tasks_left = 324
+Thread 10680: num_tasks_left = 323
+Thread 17268: num_tasks_left = 322
+Thread 10424: num_tasks_left = 321
+Thread 10680: num_tasks_left = 320
+Thread 17268: num_tasks_left = 319
+Thread 10424: num_tasks_left = 318
+Thread 10680: num_tasks_left = 317
+Thread 17268: num_tasks_left = 316
+Thread 10424: num_tasks_left = 315
+Thread 10680: num_tasks_left = 314
+Thread 17268: num_tasks_left = 313
+Thread 10424: num_tasks_left = 312
+Thread 10680: num_tasks_left = 311
+Thread 17268: num_tasks_left = 310
+Thread 10424: num_tasks_left = 309
+Thread 10680: num_tasks_left = 308
+Thread 17268: num_tasks_left = 307
+Thread 10424: num_tasks_left = 306
+Thread 10680: num_tasks_left = 305
+Thread 17268: num_tasks_left = 304
+Thread 10424: num_tasks_left = 303
+Thread 10680: num_tasks_left = 302
+Thread 17268: num_tasks_left = 301
+Thread 10424: num_tasks_left = 300
+Thread 10680: num_tasks_left = 299
+Thread 17268: num_tasks_left = 298
+Thread 10424: num_tasks_left = 297
+Thread 10680: num_tasks_left = 296
+Thread 17268: num_tasks_left = 295
+Thread 10424: num_tasks_left = 294
+Thread 10680: num_tasks_left = 293
+Thread 17268No DNS entry
+Thread 17268: num_tasks_left = 292
+Thread 10424: num_tasks_left = 291
+Thread 10680: num_tasks_left = 290
+Thread 17268: num_tasks_left = 289
+Thread 10424: num_tasks_left = 288
+Thread 10680: num_tasks_left = 287
+Thread 17268
 No answers returned...
-Thread 7048
-Server timeout, retrying...
-Thread 7048
-Error with select function, retrying...
-Thread 7048
-Error with select function, retrying...
-Thread 7048
-Too many timeouts. Abandoning IP..
-Thread 1748
-Server timeout, retrying...
-Thread 1748
-Error with select function, retrying...
-Thread 1748
-Error with select function, retrying...
-Thread 1748
-Too many timeouts. Abandoning IP..
+Thread 17268: num_tasks_left = 286
+Thread 10424: num_tasks_left = 285
+Thread 10680: num_tasks_left = 284
+Thread 17268: num_tasks_left = 283
+Thread 10424: num_tasks_left = 282
+Thread 10680: num_tasks_left = 281
+Thread 17268: num_tasks_left = 280
+Thread 10424: num_tasks_left = 279
+Thread 10680: num_tasks_left = 278
+Thread 17268: num_tasks_left = 277
+Thread 10424: num_tasks_left = 276
+Thread 10680: num_tasks_left = 275
+Thread 17268: num_tasks_left = 274
+Thread 10424: num_tasks_left = 273
+Thread 10680: num_tasks_left = 272
+Thread 17268: num_tasks_left = 271
+Thread 10424No DNS entry
+Thread 10424: num_tasks_left = 270
+Thread 10680: num_tasks_left = 269
+Thread 17268: num_tasks_left = 268
+Thread 10424: num_tasks_left = 267
+Thread 10680: num_tasks_left = 266
+Thread 17268: num_tasks_left = 265
+Thread 10424: num_tasks_left = 264
+Thread 10680: num_tasks_left = 263
+Thread 17268: num_tasks_left = 262
+Thread 10424: num_tasks_left = 261
+Thread 10680: num_tasks_left = 260
+Thread 17268: num_tasks_left = 259
+Thread 10424: num_tasks_left = 258
+Thread 10680: num_tasks_left = 257
+Thread 17268: num_tasks_left = 256
+Thread 10424: num_tasks_left = 255
+Thread 10680: num_tasks_left = 254
+Thread 17268: num_tasks_left = 253
+Thread 10424: num_tasks_left = 252
+Thread 10680No DNS entry
+Thread 10680: num_tasks_left = 251
+Thread 17268: num_tasks_left = 250
+Thread 10424: num_tasks_left = 249
+Thread 10680: num_tasks_left = 248
+Thread 17268: num_tasks_left = 247
+Thread 10424: num_tasks_left = 246
+Thread 10680: num_tasks_left = 245
+Thread 17268: num_tasks_left = 244
+Thread 10424: num_tasks_left = 243
+Thread 10680: num_tasks_left = 242
+Thread 17268: num_tasks_left = 241
